@@ -1,0 +1,37 @@
+{
+  "name": "tsheets-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "auth": "tsx scripts/auth.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cykj40/Tsheets-MCP.git"
+  },
+  "keywords": ["mcp", "quickbooks", "sage", "timesheet"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cykj40/Tsheets-MCP/issues"
+  },
+  "homepage": "https://github.com/cykj40/Tsheets-MCP#readme",
+  "description": "MCP server for QuickBooks Online to Sage 100 Contractor timesheet automation",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "dotenv": "^16.4.7",
+    "node-fetch": "^2.7.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/node-fetch": "^2.6.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/oauth-callback.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/oauth/callback",
+      "dest": "/api/oauth-callback.js"
+    }
+  ]
+}
+
