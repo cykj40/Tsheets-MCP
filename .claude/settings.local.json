@@ -5,7 +5,10 @@
       "Bash(test:*)",
       "WebFetch(domain:developer.intuit.com)",
       "WebSearch",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(if [ -f \".tokens.json\" ])",
+      "Bash(then cat \".tokens.json\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

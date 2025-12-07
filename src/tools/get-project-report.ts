@@ -21,6 +21,8 @@ export async function getProjectReport(
 ): Promise<ProjectReport> {
   const { startDate, endDate, jobName } = args;
 
+  console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${jobName ? ` (Job: ${jobName})` : ' (All Jobs)'}`);
+
   let customerId: string | undefined;
   let resolvedJobName = jobName || 'All Jobs';
 
@@ -33,12 +35,19 @@ export async function getProjectReport(
       const customers = await qboApi.searchCustomers(jobName);
 
       if (customers.length === 0) {
-        throw new Error(`No job found with name: ${jobName}`);
+        throw new Error(
+          `No job found with name: "${jobName}"\n\n` +
+          `Troubleshooting tips:\n` +
+          `- Check the job name spelling in QuickBooks Online\n` +
+          `- Try using a partial name (e.g., "Maimonides" instead of full name)\n` +
+          `- Verify the customer/job exists in your QBO account`
+        );
       }
 
       if (customers.length === 1) {
         customerId = customers[0].Id;
         resolvedJobName = customers[0].DisplayName;
+        console.error(`[GetProjectReport] Found matching job: ${resolvedJobName} (ID: ${customerId})`);
       } else {
         // Multiple matches found
         const matches = customers.map(c => c.DisplayName).join(', ');
@@ -49,6 +58,7 @@ export async function getProjectReport(
     } else {
       customerId = customer.Id;
       resolvedJobName = customer.DisplayName;
+      console.error(`[GetProjectReport] Using exact job match: ${resolvedJobName} (ID: ${customerId})`);
     }
   }
 
@@ -58,6 +68,24 @@ export async function getProjectReport(
     endDate,
     customerId
   );
+
+  // Check if no data was found
+  if (timeActivities.length === 0) {
+    const jobInfo = jobName ? ` for job "${resolvedJobName}"` : ' for any jobs';
+    console.error(`[GetProjectReport] WARNING: No timesheet data found${jobInfo} between ${startDate} and ${endDate}`);
+
+    // Return informative result instead of error
+    return {
+      jobName: resolvedJobName,
+      startDate,
+      endDate,
+      totalEntries: 0,
+      totalHours: 0,
+      timeActivities: [],
+    };
+  }
+
+  console.error(`[GetProjectReport] Processing ${timeActivities.length} time activities`);
 
   // Transform to report format
   const transformedActivities = timeActivities.map(activity => {
@@ -85,6 +113,8 @@ export async function getProjectReport(
   const totalHours = transformedActivities.reduce((sum, activity) => {
     return sum + activity.hours + activity.minutes / 60;
   }, 0);
+
+  console.error(`[GetProjectReport] Report complete: ${transformedActivities.length} entries, ${totalHours.toFixed(2)} total hours`);
 
   return {
     jobName: resolvedJobName,

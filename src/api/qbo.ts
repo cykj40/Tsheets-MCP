@@ -23,6 +23,8 @@ export class QBOApi {
     endDate: string,
     customerId?: string
   ): Promise<TimeActivity[]> {
+    console.error(`[QBOApi] Querying TimeActivities from ${startDate} to ${endDate}${customerId ? ` for customer ${customerId}` : ''}`);
+
     let query = `SELECT * FROM TimeActivity WHERE TxnDate >= '${startDate}' AND TxnDate <= '${endDate}'`;
 
     if (customerId) {
@@ -34,13 +36,18 @@ export class QBOApi {
     const response = await this.client.query<QueryResponse>(query);
     const validated = QueryResponseSchema.parse(response);
 
-    return validated.QueryResponse.TimeActivity || [];
+    const activities = validated.QueryResponse.TimeActivity || [];
+    console.error(`[QBOApi] Found ${activities.length} time activities`);
+
+    return activities;
   }
 
   /**
    * Search for customers by name (job name)
    */
   async searchCustomers(searchTerm: string): Promise<Customer[]> {
+    console.error(`[QBOApi] Searching for customers matching: "${searchTerm}"`);
+
     // Escape single quotes in search term
     const escapedTerm = searchTerm.replace(/'/g, "\\'");
 
@@ -49,13 +56,18 @@ export class QBOApi {
     const response = await this.client.query<CustomerQueryResponse>(query);
     const validated = CustomerQueryResponseSchema.parse(response);
 
-    return validated.QueryResponse.Customer || [];
+    const customers = validated.QueryResponse.Customer || [];
+    console.error(`[QBOApi] Found ${customers.length} customers:`, customers.map(c => c.DisplayName).join(', '));
+
+    return customers;
   }
 
   /**
    * Get customer by exact display name
    */
   async getCustomerByName(name: string): Promise<Customer | null> {
+    console.error(`[QBOApi] Getting customer by exact name: "${name}"`);
+
     // Escape single quotes
     const escapedName = name.replace(/'/g, "\\'");
 
@@ -65,6 +77,8 @@ export class QBOApi {
     const validated = CustomerQueryResponseSchema.parse(response);
 
     const customers = validated.QueryResponse.Customer || [];
+    console.error(`[QBOApi] Found ${customers.length} exact match${customers.length !== 1 ? 'es' : ''}`);
+
     return customers.length > 0 ? customers[0] : null;
   }
 

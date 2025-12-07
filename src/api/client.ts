@@ -20,14 +20,18 @@ export class QBOClient {
    * Initialize client by loading realm ID, auto-authorize if needed
    */
   async initialize(): Promise<void> {
+    console.error('[QBOClient] Initializing client...');
     this.realmId = await this.tokenManager.getRealmId();
-    
+
     // If no realm ID, trigger authorization flow
     if (!this.realmId) {
-      console.error('No tokens found. Starting authorization flow...');
+      console.error('[QBOClient] No tokens found. Starting authorization flow...');
       const tokens = await this.oauth.authorize();
       await this.tokenManager.saveTokens(tokens);
       this.realmId = tokens.realmId;
+      console.error(`[QBOClient] Authorized with realm ID: ${this.realmId}`);
+    } else {
+      console.error(`[QBOClient] Loaded realm ID: ${this.realmId}`);
     }
   }
 
@@ -35,6 +39,8 @@ export class QBOClient {
    * Execute a QBO query with automatic token refresh
    */
   async query<T>(queryString: string): Promise<T> {
+    console.error('[QBOClient] Executing query:', queryString);
+
     if (!this.realmId) {
       await this.initialize();
     }
@@ -46,9 +52,11 @@ export class QBOClient {
     });
 
     const fullUrl = `${url}?${params.toString()}`;
+    console.error('[QBOClient] Request URL:', fullUrl);
 
     // Get access token (may trigger refresh)
     const accessToken = await this.getValidAccessToken();
+    console.error('[QBOClient] Using access token (first 20 chars):', accessToken.substring(0, 20) + '...');
 
     const response = await fetch(fullUrl, {
       method: 'GET',
@@ -59,8 +67,11 @@ export class QBOClient {
       },
     });
 
+    console.error('[QBOClient] Response status:', response.status, response.statusText);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('[QBOClient] Error response:', errorText);
 
       // Try to parse as QBO error
       try {
@@ -74,6 +85,7 @@ export class QBOClient {
     }
 
     const data = await response.json();
+    console.error('[QBOClient] Response data keys:', Object.keys(data));
     return data as T;
   }
 
@@ -81,21 +93,25 @@ export class QBOClient {
    * Get valid access token with automatic refresh or re-authorization
    */
   private async getValidAccessToken(): Promise<string> {
+    console.error('[QBOClient] Getting valid access token...');
     let accessToken = await this.tokenManager.getValidAccessToken();
 
     // If token is invalid/expired, try to refresh
     if (!accessToken) {
+      console.error('[QBOClient] Access token expired or missing, attempting refresh...');
       const refreshToken = await this.tokenManager.getRefreshToken();
       const realmId = await this.tokenManager.getRealmId();
 
       if (refreshToken && realmId) {
         try {
+          console.error('[QBOClient] Refreshing access token...');
           // Try to refresh the token
           const newTokens = await this.oauth.refreshAccessToken(refreshToken, realmId);
           await this.tokenManager.saveTokens(newTokens);
           accessToken = newTokens.accessToken;
+          console.error('[QBOClient] Token refreshed successfully');
         } catch (error) {
-          console.error('Token refresh failed, starting re-authorization...');
+          console.error('[QBOClient] Token refresh failed, starting re-authorization...');
           // Refresh failed, need to re-authorize
           const tokens = await this.oauth.authorize();
           await this.tokenManager.saveTokens(tokens);
@@ -104,12 +120,14 @@ export class QBOClient {
         }
       } else {
         // No refresh token, need to authorize
-        console.error('No tokens found, starting authorization...');
+        console.error('[QBOClient] No tokens found, starting authorization...');
         const tokens = await this.oauth.authorize();
         await this.tokenManager.saveTokens(tokens);
         this.realmId = tokens.realmId;
         accessToken = tokens.accessToken;
       }
+    } else {
+      console.error('[QBOClient] Using existing valid access token');
     }
 
     return accessToken;
