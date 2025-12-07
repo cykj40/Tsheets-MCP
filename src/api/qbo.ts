@@ -29,7 +29,7 @@ export class QBOApi {
       query += ` AND CustomerRef = '${customerId}'`;
     }
 
-    query += ' ORDERBY TxnDate';
+    query += ' ORDER BY TxnDate';
 
     const response = await this.client.query<QueryResponse>(query);
     const validated = QueryResponseSchema.parse(response);

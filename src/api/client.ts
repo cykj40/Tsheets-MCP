@@ -17,12 +17,17 @@ export class QBOClient {
   }
 
   /**
-   * Initialize client by loading realm ID
+   * Initialize client by loading realm ID, auto-authorize if needed
    */
   async initialize(): Promise<void> {
     this.realmId = await this.tokenManager.getRealmId();
+    
+    // If no realm ID, trigger authorization flow
     if (!this.realmId) {
-      throw new Error('No realm ID found. Please authenticate first using: npm run auth');
+      console.error('No tokens found. Starting authorization flow...');
+      const tokens = await this.oauth.authorize();
+      await this.tokenManager.saveTokens(tokens);
+      this.realmId = tokens.realmId;
     }
   }
 
@@ -73,7 +78,7 @@ export class QBOClient {
   }
 
   /**
-   * Get valid access token with automatic refresh
+   * Get valid access token with automatic refresh or re-authorization
    */
   private async getValidAccessToken(): Promise<string> {
     let accessToken = await this.tokenManager.getValidAccessToken();
@@ -83,15 +88,28 @@ export class QBOClient {
       const refreshToken = await this.tokenManager.getRefreshToken();
       const realmId = await this.tokenManager.getRealmId();
 
-      if (!refreshToken || !realmId) {
-        throw new Error('No valid tokens found. Please authenticate first using: npm run auth');
+      if (refreshToken && realmId) {
+        try {
+          // Try to refresh the token
+          const newTokens = await this.oauth.refreshAccessToken(refreshToken, realmId);
+          await this.tokenManager.saveTokens(newTokens);
+          accessToken = newTokens.accessToken;
+        } catch (error) {
+          console.error('Token refresh failed, starting re-authorization...');
+          // Refresh failed, need to re-authorize
+          const tokens = await this.oauth.authorize();
+          await this.tokenManager.saveTokens(tokens);
+          this.realmId = tokens.realmId;
+          accessToken = tokens.accessToken;
+        }
+      } else {
+        // No refresh token, need to authorize
+        console.error('No tokens found, starting authorization...');
+        const tokens = await this.oauth.authorize();
+        await this.tokenManager.saveTokens(tokens);
+        this.realmId = tokens.realmId;
+        accessToken = tokens.accessToken;
       }
-
-      // Refresh the token
-      const newTokens = await this.oauth.refreshAccessToken(refreshToken, realmId);
-      await this.tokenManager.saveTokens(newTokens);
-
-      accessToken = newTokens.accessToken;
     }
 
     return accessToken;

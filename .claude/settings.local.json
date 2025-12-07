@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(test:*)",
+      "WebFetch(domain:developer.intuit.com)",
+      "WebSearch",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
