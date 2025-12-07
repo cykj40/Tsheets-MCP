@@ -8,7 +8,9 @@
       "Bash(npm run build:*)",
       "Bash(if [ -f \".tokens.json\" ])",
       "Bash(then cat \".tokens.json\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(npm install:*)",
+      "Bash(npm run auth:*)"
     ],
     "deny": [],
     "ask": []

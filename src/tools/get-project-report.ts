@@ -2,15 +2,14 @@ import { z } from 'zod';
 import { QBOApi } from '../api/qbo.js';
 import { ProjectReport } from '../types/sage.js';
 import { isValidDateString } from '../utils/date.js';
+import { parseNaturalDate, parseJobIdentifier } from '../utils/date-parser.js';
 
 export const GetProjectReportArgsSchema = z.object({
-  startDate: z.string().refine(isValidDateString, {
-    message: 'Invalid date format. Use YYYY-MM-DD',
-  }),
-  endDate: z.string().refine(isValidDateString, {
-    message: 'Invalid date format. Use YYYY-MM-DD',
-  }),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  dateRange: z.string().optional(), // Natural language like "last week", "this month"
   jobName: z.string().optional(),
+  jobIdentifier: z.string().optional(), // Can include number + name like "25802 MMC Fort Hamilton"
 });
 
 export type GetProjectReportArgs = z.infer<typeof GetProjectReportArgsSchema>;
@@ -19,24 +18,62 @@ export async function getProjectReport(
   args: GetProjectReportArgs,
   qboApi: QBOApi
 ): Promise<ProjectReport> {
-  const { startDate, endDate, jobName } = args;
+  // Parse date range - support natural language or explicit dates
+  let startDate: string;
+  let endDate: string;
 
-  console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${jobName ? ` (Job: ${jobName})` : ' (All Jobs)'}`);
+  if (args.dateRange) {
+    console.error(`[GetProjectReport] Parsing date range: "${args.dateRange}"`);
+    const parsed = parseNaturalDate(args.dateRange);
+    startDate = parsed.startDate;
+    endDate = parsed.endDate;
+    console.error(`[GetProjectReport] Resolved to: ${startDate} to ${endDate}`);
+  } else if (args.startDate && args.endDate) {
+    // Validate explicit dates
+    if (!isValidDateString(args.startDate) || !isValidDateString(args.endDate)) {
+      throw new Error('Invalid date format. Use YYYY-MM-DD or natural language like "last week"');
+    }
+    startDate = args.startDate;
+    endDate = args.endDate;
+  } else {
+    // Default to last week
+    console.error(`[GetProjectReport] No date range provided, defaulting to "last week"`);
+    const parsed = parseNaturalDate('last week');
+    startDate = parsed.startDate;
+    endDate = parsed.endDate;
+  }
+
+  // Parse job identifier - support "25802 MMC Fort Hamilton" format
+  let jobName: string | undefined;
+  let jobNumber: string | undefined;
+
+  if (args.jobIdentifier) {
+    const parsed = parseJobIdentifier(args.jobIdentifier);
+    jobName = parsed.jobName;
+    jobNumber = parsed.jobNumber;
+    console.error(`[GetProjectReport] Parsed job identifier: Number=${jobNumber}, Name=${jobName}`);
+  } else if (args.jobName) {
+    jobName = args.jobName;
+  }
+
+  const searchJobName = jobName || (jobNumber ? jobNumber : undefined);
+
+  console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${searchJobName ? ` (Job: ${searchJobName})` : ' (All Jobs)'}`);
 
   let customerId: string | undefined;
-  let resolvedJobName = jobName || 'All Jobs';
+  let resolvedJobName = searchJobName || 'All Jobs';
 
-  // If jobName provided, search for the customer
-  if (jobName) {
-    const customer = await qboApi.getCustomerByName(jobName);
+  // If job identifier provided, search for the customer
+  if (searchJobName) {
+    const customer = await qboApi.getCustomerByName(searchJobName);
 
     if (!customer) {
       // Try searching for partial matches
-      const customers = await qboApi.searchCustomers(jobName);
+      const customers = await qboApi.searchCustomers(searchJobName);
 
       if (customers.length === 0) {
         throw new Error(
-          `No job found with name: "${jobName}"\n\n` +
+          `No job found with name: "${searchJobName}"\n\n` +
           `Troubleshooting tips:\n` +
           `- Check the job name spelling in QuickBooks Online\n` +
           `- Try using a partial name (e.g., "Maimonides" instead of full name)\n` +
@@ -52,7 +89,7 @@ export async function getProjectReport(
         // Multiple matches found
         const matches = customers.map(c => c.DisplayName).join(', ');
         throw new Error(
-          `Multiple jobs found matching "${jobName}": ${matches}. Please provide exact job name.`
+          `Multiple jobs found matching "${searchJobName}": ${matches}. Please provide exact job name.`
         );
       }
     } else {
@@ -71,7 +108,7 @@ export async function getProjectReport(
 
   // Check if no data was found
   if (timeActivities.length === 0) {
-    const jobInfo = jobName ? ` for job "${resolvedJobName}"` : ' for any jobs';
+    const jobInfo = searchJobName ? ` for job "${resolvedJobName}"` : ' for any jobs';
     console.error(`[GetProjectReport] WARNING: No timesheet data found${jobInfo} between ${startDate} and ${endDate}`);
 
     // Return informative result instead of error

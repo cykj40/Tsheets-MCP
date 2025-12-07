@@ -264,3 +264,15 @@ ISC
 
 For issues and questions, please open an issue on GitHub:
 https://github.com/cykj40/Tsheets-MCP/issues
+
+
+## Proper end-point t-sheets query time-sheet
+
+GET /v3/company/9341455865371339/query?query=select * from TimeActivity where TxnDate > '2014-09-14'&minorversion=75
+
+Content type:application/text
+Production Base URL:https://quickbooks.api.intuit.com
+Sandbox Base URL:https://sandbox-quickbooks.api.intuit.comt 
+
+can i organize timesheets by job ? 
+and review reports like this ?

@@ -20,6 +20,10 @@ import {
   exportClipboard,
   ExportClipboardArgsSchema,
 } from './tools/export-clipboard.js';
+import {
+  exportDocument,
+  ExportDocumentArgsSchema,
+} from './tools/export-document.js';
 
 // Load environment variables
 dotenv.config();
@@ -52,24 +56,32 @@ const tools: Tool[] = [
   {
     name: 'get_project_report',
     description:
-      'Extract timesheet data from QuickBooks Online for a specific date range and optional job. Returns raw project report with time activities.',
+      'Get timesheet data from QuickBooks Online. Supports natural language dates like "last week", "this month". Can search by job number + name (e.g., "25802 MMC Fort Hamilton").',
     inputSchema: {
       type: 'object',
       properties: {
+        dateRange: {
+          type: 'string',
+          description: 'Natural language date range: "last week", "this week", "this month", "last month", "week of 11/3/2025"',
+        },
         startDate: {
           type: 'string',
-          description: 'Start date in YYYY-MM-DD format',
+          description: 'Alternative: Explicit start date in YYYY-MM-DD format',
         },
         endDate: {
           type: 'string',
-          description: 'End date in YYYY-MM-DD format',
+          description: 'Alternative: Explicit end date in YYYY-MM-DD format',
+        },
+        jobIdentifier: {
+          type: 'string',
+          description: 'Job to filter by. Can be: job number, job name, or "number name" (e.g., "25802 MMC Fort Hamilton")',
         },
         jobName: {
           type: 'string',
-          description: 'Optional job/customer name to filter results',
+          description: 'Alternative: Job/customer name to filter results',
         },
       },
-      required: ['startDate', 'endDate'],
+      required: [],
     },
   },
   {
@@ -102,6 +114,30 @@ const tools: Tool[] = [
           type: 'string',
           enum: ['text', 'markdown', 'csv'],
           description: 'Output format',
+        },
+      },
+      required: ['sageReport', 'format'],
+    },
+  },
+  {
+    name: 'export_document',
+    description:
+      'Export Sage-formatted timesheet report as a professional DOCX or PDF document with tables and formatting. Returns base64-encoded file ready for download.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sageReport: {
+          type: 'object',
+          description: 'Sage report from format_sage tool',
+        },
+        format: {
+          type: 'string',
+          enum: ['docx', 'pdf'],
+          description: 'Document format: docx or pdf',
+        },
+        filename: {
+          type: 'string',
+          description: 'Optional custom filename (without extension)',
         },
       },
       required: ['sageReport', 'format'],
@@ -168,6 +204,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: result,
+            },
+          ],
+        };
+      }
+
+      case 'export_document': {
+        const validated = ExportDocumentArgsSchema.parse(args);
+        const result = await exportDocument(validated);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };

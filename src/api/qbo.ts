@@ -106,4 +106,70 @@ export class QBOApi {
     const customers = validated.QueryResponse.Customer || [];
     return customers.length > 0 ? customers[0] : null;
   }
+
+  /**
+   * Get a single TimeActivity by ID (using query, not direct GET)
+   */
+  async getTimeActivityById(timeActivityId: string): Promise<TimeActivity | null> {
+    console.error(`[QBOApi] Getting TimeActivity by ID: ${timeActivityId}`);
+
+    const query = `SELECT * FROM TimeActivity WHERE Id = '${timeActivityId}'`;
+
+    const response = await this.client.query<QueryResponse>(query);
+    const validated = QueryResponseSchema.parse(response);
+
+    const activities = validated.QueryResponse.TimeActivity || [];
+    console.error(`[QBOApi] Found ${activities.length} TimeActivity with ID ${timeActivityId}`);
+
+    return activities.length > 0 ? activities[0] : null;
+  }
+
+  /**
+   * Get all TimeActivities (no filters, with optional limit)
+   */
+  async getAllTimeActivities(maxResults?: number): Promise<TimeActivity[]> {
+    console.error('[QBOApi] Getting all TimeActivities');
+
+    let query = 'SELECT * FROM TimeActivity';
+
+    if (maxResults) {
+      query += ` MAXRESULTS ${maxResults}`;
+    }
+
+    const response = await this.client.query<QueryResponse>(query);
+    const validated = QueryResponseSchema.parse(response);
+
+    const activities = validated.QueryResponse.TimeActivity || [];
+    console.error(`[QBOApi] Found ${activities.length} time activities`);
+
+    return activities;
+  }
+
+  /**
+   * Get recent TimeActivities (ordered by most recent first)
+   */
+  async getRecentTimeActivities(days: number = 30, maxResults?: number): Promise<TimeActivity[]> {
+    console.error(`[QBOApi] Getting TimeActivities from last ${days} days`);
+
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    let query = `SELECT * FROM TimeActivity WHERE TxnDate >= '${startDateStr}' AND TxnDate <= '${endDateStr}' ORDER BY TxnDate DESC`;
+
+    if (maxResults) {
+      query += ` MAXRESULTS ${maxResults}`;
+    }
+
+    const response = await this.client.query<QueryResponse>(query);
+    const validated = QueryResponseSchema.parse(response);
+
+    const activities = validated.QueryResponse.TimeActivity || [];
+    console.error(`[QBOApi] Found ${activities.length} recent time activities`);
+
+    return activities;
+  }
 }

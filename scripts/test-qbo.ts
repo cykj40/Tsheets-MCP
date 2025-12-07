@@ -4,9 +4,12 @@
  * Standalone test script to verify QuickBooks Online API connectivity
  *
  * Usage:
- *   npm run test:qbo                           # Test connection only
+ *   npm run test:qbo                                    # Test connection only (production)
+ *   npm run test:qbo -- --sandbox                       # Use sandbox environment
+ *   npm run test:qbo -- --sandbox --raw                 # Show raw JSON output
  *   npm run test:qbo -- --dates 2025-11-01 2025-11-30   # Test with date range
- *   npm run test:qbo -- --job "Maimonides"    # Test with job name
+ *   npm run test:qbo -- --job "Maimonides"              # Test with job name
+ *   npm run test:qbo -- --sandbox --dump                # Dump all data (employees, customers, time)
  */
 
 import dotenv from 'dotenv';
@@ -37,6 +40,9 @@ const args = process.argv.slice(2);
 let startDate = '2025-11-01';
 let endDate = '2025-11-30';
 let jobName: string | undefined;
+let useSandbox = false;
+let showRawJson = false;
+let dumpAll = false;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--dates' && i + 2 < args.length) {
@@ -46,11 +52,22 @@ for (let i = 0; i < args.length; i++) {
   } else if (args[i] === '--job' && i + 1 < args.length) {
     jobName = args[i + 1];
     i += 1;
+  } else if (args[i] === '--sandbox') {
+    useSandbox = true;
+  } else if (args[i] === '--raw') {
+    showRawJson = true;
+  } else if (args[i] === '--dump') {
+    dumpAll = true;
+    showRawJson = true;
   }
 }
 
 async function main() {
   console.log('🔍 QuickBooks Online API Connectivity Test\n');
+  console.log('='.repeat(60));
+  console.log(`Environment: ${useSandbox ? '🧪 SANDBOX' : '🏭 PRODUCTION'}`);
+  if (showRawJson) console.log('📄 Raw JSON output enabled');
+  if (dumpAll) console.log('📦 Full data dump mode');
   console.log('='.repeat(60));
 
   try {
@@ -61,7 +78,7 @@ async function main() {
       clientId: process.env.INTUIT_CLIENT_ID!,
       clientSecret: process.env.INTUIT_CLIENT_SECRET!,
       redirectUri: process.env.INTUIT_REDIRECT_URI!,
-    });
+    }, useSandbox);
     const qboApi = new QBOApi(qboClient);
 
     // Check token validity
@@ -79,12 +96,58 @@ async function main() {
     const realmId = qboClient.getRealmId();
     console.log(`✅ Connected to QuickBooks (Realm ID: ${realmId})`);
 
+    // DUMP MODE: Show all raw data
+    if (dumpAll) {
+      console.log('\n' + '='.repeat(60));
+      console.log('📦 FULL DATA DUMP');
+      console.log('='.repeat(60));
+
+      // Dump Employees
+      console.log('\n👥 EMPLOYEES:');
+      console.log('-'.repeat(40));
+      try {
+        const employeesResponse = await qboClient.query<any>('SELECT * FROM Employee');
+        console.log(JSON.stringify(employeesResponse, null, 2));
+      } catch (e) {
+        console.log('No employees found or error:', e);
+      }
+
+      // Dump Customers/Projects
+      console.log('\n🏢 CUSTOMERS/PROJECTS:');
+      console.log('-'.repeat(40));
+      const customersResponse = await qboClient.query<any>('SELECT * FROM Customer');
+      console.log(JSON.stringify(customersResponse, null, 2));
+
+      // Dump TimeActivities
+      console.log('\n⏱️  TIME ACTIVITIES:');
+      console.log('-'.repeat(40));
+      const timeResponse = await qboClient.query<any>('SELECT * FROM TimeActivity');
+      console.log(JSON.stringify(timeResponse, null, 2));
+
+      // Dump Attachables (photos/files)
+      console.log('\n📎 ATTACHABLES (Photos/Files):');
+      console.log('-'.repeat(40));
+      try {
+        const attachResponse = await qboClient.query<any>('SELECT * FROM Attachable');
+        console.log(JSON.stringify(attachResponse, null, 2));
+      } catch (e) {
+        console.log('No attachables found or error:', e);
+      }
+
+      console.log('\n' + '='.repeat(60));
+      console.log('✅ Data dump complete!');
+      return;
+    }
+
     // Test 1: Get all customers
     console.log('\n📋 Test 1: Fetching all customers...');
     const allCustomers = await qboApi.getAllCustomers();
     console.log(`✅ Found ${allCustomers.length} customers/jobs in QuickBooks`);
 
-    if (allCustomers.length > 0) {
+    if (showRawJson && allCustomers.length > 0) {
+      console.log('\n📄 Raw Customer Data (first 3):');
+      console.log(JSON.stringify(allCustomers.slice(0, 3), null, 2));
+    } else if (allCustomers.length > 0) {
       console.log('\nSample customers (first 10):');
       allCustomers.slice(0, 10).forEach((customer, i) => {
         console.log(`  ${i + 1}. ${customer.DisplayName} (ID: ${customer.Id})`);
@@ -174,16 +237,21 @@ async function main() {
         });
 
       // Show sample activities
-      console.log(`\nSample activities (first 5):`);
-      timeActivities.slice(0, 5).forEach((activity, i) => {
-        const employeeName = activity.EmployeeRef?.name || activity.VendorRef?.name || 'Unknown';
-        const customerName = activity.CustomerRef?.name || 'Unknown';
-        const hours = (activity.Hours || 0) + (activity.Minutes || 0) / 60;
-        console.log(`  ${i + 1}. ${activity.TxnDate} | ${employeeName} | ${customerName} | ${hours.toFixed(2)}h`);
-        if (activity.Description) {
-          console.log(`     "${activity.Description}"`);
-        }
-      });
+      if (showRawJson) {
+        console.log(`\n📄 Raw TimeActivity Data (first 5):`);
+        console.log(JSON.stringify(timeActivities.slice(0, 5), null, 2));
+      } else {
+        console.log(`\nSample activities (first 5):`);
+        timeActivities.slice(0, 5).forEach((activity, i) => {
+          const employeeName = activity.EmployeeRef?.name || activity.VendorRef?.name || 'Unknown';
+          const customerName = activity.CustomerRef?.name || 'Unknown';
+          const hours = (activity.Hours || 0) + (activity.Minutes || 0) / 60;
+          console.log(`  ${i + 1}. ${activity.TxnDate} | ${employeeName} | ${customerName} | ${hours.toFixed(2)}h`);
+          if (activity.Description) {
+            console.log(`     "${activity.Description}"`);
+          }
+        });
+      }
     }
 
     console.log('\n' + '='.repeat(60));
