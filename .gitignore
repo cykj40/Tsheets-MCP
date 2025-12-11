@@ -35,3 +35,9 @@ coverage/
 .vercel
 
 .tsbuildinfo
+
+.cursor
+
+.cursor/
+
+SETUP_GUIDE.md
