@@ -42,13 +42,17 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
+// Check if using sandbox mode (default to false for production)
+const useSandbox = process.env.USE_SANDBOX === 'true';
+console.error(`[MCP Server] Environment: ${useSandbox ? '🧪 SANDBOX' : '🏭 PRODUCTION'}`);
+
 // Initialize services
 const tokenManager = new TokenManager(process.env.TOKEN_FILE_PATH!);
 const qboClient = new QBOClient(tokenManager, {
   clientId: process.env.INTUIT_CLIENT_ID!,
   clientSecret: process.env.INTUIT_CLIENT_SECRET!,
   redirectUri: process.env.INTUIT_REDIRECT_URI!,
-});
+}, useSandbox);
 const qboApi = new QBOApi(qboClient);
 
 // Define MCP tools

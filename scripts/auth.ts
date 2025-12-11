@@ -50,24 +50,66 @@ async function main() {
   console.log('QuickBooks Online OAuth Authentication');
   console.log('===========================================\n');
 
-  // Generate authorization URL
-  const state = Math.random().toString(36).substring(2, 15);
-  const authUrl = oauth.generateAuthUrl(state);
+  const useManual = process.argv.includes('--manual');
 
-  console.log('Step 1: Authorize the application');
+  if (useManual) {
+    // Manual mode: user copies URL
+    const state = Math.random().toString(36).substring(2, 15);
+    const authUrl = oauth.generateAuthUrl(state);
+
+    console.log('Step 1: Authorize the application');
+    console.log('-------------------------------------------');
+    console.log('Please open the following URL in your browser:\n');
+    console.log(authUrl);
+    console.log('');
+
+    console.log('Step 2: Complete authorization');
+    console.log('-------------------------------------------');
+    console.log('After authorizing, you will be redirected to a URL like:');
+    console.log('http://localhost:3000/oauth/callback?code=...&realmId=...\n');
+
+    const redirectUrl = await question('Paste the entire redirect URL here: ');
+    rl.close();
+
+    // Parse manually
+    await handleManualAuth(redirectUrl, state);
+  } else {
+    // Automatic mode: start server
+    console.log('🚀 Starting OAuth server on http://localhost:3000');
+    console.log('The browser will open automatically...\n');
+
+    try {
+      const tokens = await oauth.authorize();
+      await tokenManager.saveTokens(tokens);
+
+      console.log('\n✅ Success! Authentication complete.');
+      console.log('-------------------------------------------');
+      console.log(`Realm ID: ${tokens.realmId}`);
+      console.log(`Token expires: ${new Date(tokens.expiresAt).toLocaleString()}`);
+      console.log(`Tokens saved to: ${process.env.TOKEN_FILE_PATH}`);
+      console.log('\nYou can now test with: npm run test:qbo -- --sandbox --dump');
+      console.log('===========================================\n');
+    } catch (error) {
+      console.error('\n❌ Auto mode failed. Trying manual mode...\n');
+
+      const state = Math.random().toString(36).substring(2, 15);
+      const authUrl = oauth.generateAuthUrl(state);
+
+      console.log('Please open this URL in your browser:\n');
+      console.log(authUrl);
+      console.log('\nAfter authorizing, paste the redirect URL here:');
+
+      const redirectUrl = await question('> ');
+      rl.close();
+      await handleManualAuth(redirectUrl, state);
+    }
+  }
+}
+
+async function handleManualAuth(redirectUrl: string, state: string) {
+  console.log('\nStep 3: Exchanging code for tokens...');
   console.log('-------------------------------------------');
-  console.log('Please open the following URL in your browser:\n');
-  console.log(authUrl);
-  console.log('');
 
-  console.log('Step 2: Complete authorization');
-  console.log('-------------------------------------------');
-  console.log('After authorizing, you will be redirected to a URL like:');
-  console.log('http://localhost:3000/oauth/callback?code=...&realmId=...\n');
-
-  const redirectUrl = await question('Paste the entire redirect URL here: ');
-
-  // Parse the redirect URL
   try {
     const url = new URL(redirectUrl.trim());
     const code = url.searchParams.get('code');
@@ -83,11 +125,8 @@ async function main() {
     }
 
     if (returnedState !== state) {
-      console.warn('Warning: State parameter mismatch. Proceeding anyway...');
+      console.warn('⚠️  Warning: State parameter mismatch. Proceeding anyway...');
     }
-
-    console.log('\nStep 3: Exchanging code for tokens...');
-    console.log('-------------------------------------------');
 
     // Exchange code for tokens
     const tokens = await oauth.exchangeCodeForTokens(code, realmId);
@@ -95,20 +134,21 @@ async function main() {
     // Save tokens
     await tokenManager.saveTokens(tokens);
 
-    console.log('\nSuccess! Authentication complete.');
+    console.log('\n✅ Success! Authentication complete.');
     console.log('-------------------------------------------');
     console.log(`Realm ID: ${realmId}`);
     console.log(`Token expires: ${new Date(tokens.expiresAt).toLocaleString()}`);
     console.log(`Tokens saved to: ${process.env.TOKEN_FILE_PATH}`);
-    console.log('\nYou can now run the MCP server with: npm run dev');
+    console.log('\nYou can now test with: npm run test:qbo -- --sandbox --dump');
     console.log('===========================================\n');
   } catch (error) {
-    console.error('\nError during authentication:');
+    console.error('\n❌ Error during authentication:');
     console.error(error instanceof Error ? error.message : String(error));
-    console.error('\nPlease try again.\n');
+    console.error('\n💡 Tips:');
+    console.error('  - Make sure you paste the URL within 60 seconds');
+    console.error('  - Copy the ENTIRE URL from your browser address bar');
+    console.error('  - Include http:// or https:// at the beginning\n');
     process.exit(1);
-  } finally {
-    rl.close();
   }
 }
 
