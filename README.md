@@ -272,216 +272,41 @@ GET /v3/company/9341455865371339/query?query=select * from TimeActivity where Tx
 Content type:application/text
 Production Base URL:https://quickbooks.api.intuit.com
 Sandbox Base URL:https://sandbox-quickbooks.api.intuit.com 
-
-{
- "QueryResponse": {
-  "TimeActivity": [
-   {
-    "TxnDate": "2025-11-09",
-    "NameOf": "Employee",
-    "EmployeeRef": {
-     "value": "55",
-     "name": "Emily Platt"
-    },
-    "CustomerRef": {
-     "value": "21",
-     "name": "Rondonuwu Fruit and Vegi"
-    },
-    "ItemRef": {
-     "value": "8",
-     "name": "Lighting"
-    },
-    "TimeChargeId": 54,
-    "BillableStatus": "HasBeenBilled",
-    "Taxable": false,
-    "HourlyRate": 15,
-    "CostRate": 0,
-    "Hours": 3,
-    "Minutes": 0,
-    "Seconds": 0,
-    "Description": "Garden Lighting",
-    "domain": "QBO",
-    "sparse": false,
-    "Id": "5",
-    "SyncToken": "0",
-    "MetaData": {
-     "CreateTime": "2025-11-09T11:55:25-08:00",
-     "LastUpdatedTime": "2025-11-09T11:55:25-08:00"
-    }
-   },
-   {
-    "TxnDate": "2025-11-09",
-    "NameOf": "Employee",
-    "EmployeeRef": {
-     "value": "55",
-     "name": "Emily Platt"
-    },
-    "CustomerRef": {
-     "value": "21",
-     "name": "Rondonuwu Fruit and Vegi"
-    },
-    "ItemRef": {
-     "value": "18",
-     "name": "Trimming"
-    },
-    "TimeChargeId": 53,
-    "BillableStatus": "HasBeenBilled",
-    "Taxable": false,
-    "HourlyRate": 15,
-    "CostRate": 0,
-    "Hours": 2,
-    "Minutes": 0,
-    "Seconds": 0,
-    "Description": "Tree and Shrub Trimming",
-    "domain": "QBO",
-    "sparse": false,
-    "Id": "4",
-    "SyncToken": "0",
-    "MetaData": {
-     "CreateTime": "2025-11-09T11:54:02-08:00",
-     "LastUpdatedTime": "2025-11-09T11:54:02-08:00"
-    }
-   },
-   {
-    "TxnDate": "2025-11-08",
-    "NameOf": "Employee",
-    "EmployeeRef": {
-     "value": "54",
-     "name": "John Johnson"
-    },
-    "CustomerRef": {
-     "value": "1",
-     "name": "Amy's Bird Sanctuary"
-    },
-    "ItemRef": {
-     "value": "4",
-     "name": "Design"
-    },
-    "TimeChargeId": 52,
-    "BillableStatus": "Billable",
-    "Taxable": false,
-    "HourlyRate": 75,
-    "CostRate": 0,
-    "Hours": 5,
-    "Minutes": 0,
-    "Seconds": 0,
-    "Description": "Custom Design",
-    "domain": "QBO",
-    "sparse": false,
-    "Id": "3",
-    "SyncToken": "0",
-    "MetaData": {
-     "CreateTime": "2025-11-09T11:53:15-08:00",
-     "LastUpdatedTime": "2025-11-09T11:53:15-08:00"
-    }
-   },
-   {
-    "TxnDate": "2025-11-09",
-    "NameOf": "Employee",
-    "EmployeeRef": {
-     "value": "54",
-     "name": "John Johnson"
-    },
-    "CustomerRef": {
-     "value": "1",
-     "name": "Amy's Bird Sanctuary"
-    },
-    "ItemRef": {
-     "value": "2",
-     "name": "Hours"
-    },
-    "BillableStatus": "NotBillable",
-    "Taxable": false,
-    "HourlyRate": 0,
-    "CostRate": 0,
-    "Hours": 4,
-    "Minutes": 0,
-    "Seconds": 0,
-    "Description": "Gardening",
-    "domain": "QBO",
-    "sparse": false,
-    "Id": "2",
-    "SyncToken": "0",
-    "MetaData": {
-     "CreateTime": "2025-11-09T11:47:12-08:00",
-     "LastUpdatedTime": "2025-11-09T11:47:12-08:00"
-    }
-   },
-   {
-    "TxnDate": "2025-11-04",
-    "NameOf": "Employee",
-    "EmployeeRef": {
-     "value": "55",
-     "name": "Emily Platt"
-    },
-    "CustomerRef": {
-     "value": "17",
-     "name": "Mark Cho"
-    },
-    "ItemRef": {
-     "value": "2",
-     "name": "Hours"
-    },
-    "BillableStatus": "NotBillable",
-    "Taxable": false,
-    "HourlyRate": 0,
-    "CostRate": 0,
-    "Hours": 4,
-    "Minutes": 45,
-    "Seconds": 0,
-    "Description": "Designed Garden.  Poured Concrete Foundation",
-    "domain": "QBO",
-    "sparse": false,
-    "Id": "1",
-    "SyncToken": "0",
-    "MetaData": {
-     "CreateTime": "2025-11-09T11:23:26-08:00",
-     "LastUpdatedTime": "2025-11-09T11:23:26-08:00"
-    }
-   }
-  ],
-  "startPosition": 1,
-  "maxResults": 5
- },
- "time": "2025-12-07T05:53:03.631-08:00"
-}
-
+```json
 {
   "TimeActivity": {
-    "TxnDate": "2014-09-17", 
-    "domain": "QBO", 
-    "NameOf": "Employee", 
-    "Description": "Garden Lighting", 
+    "TxnDate": "2014-09-17",
+    "domain": "QBO",
+    "NameOf": "Employee",
+    "Description": "Garden Lighting",
     "ItemRef": {
-      "name": "Lighting", 
+      "name": "Lighting",
       "value": "8"
-    }, 
-    "Minutes": 0, 
+    },
+    "Minutes": 0,
     "ProjectRef": {
       "value": "39298045"
-    }, 
-    "Hours": 3, 
-    "BillableStatus": "HasBeenBilled", 
-    "sparse": false, 
-    "HourlyRate": 15, 
-    "Taxable": false, 
+    },
+    "Hours": 3,
+    "BillableStatus": "HasBeenBilled",
+    "sparse": false,
+    "HourlyRate": 15,
+    "Taxable": false,
     "EmployeeRef": {
-      "name": "Emily Platt", 
+      "name": "Emily Platt",
       "value": "55"
-    }, 
-    "SyncToken": "0", 
+    },
+    "SyncToken": "0",
     "CustomerRef": {
-      "name": "Rondonuwu Fruit and Vegi", 
+      "name": "Rondonuwu Fruit and Vegi",
       "value": "21"
-    }, 
-    "Id": "5", 
+    },
+    "Id": "5",
     "MetaData": {
-      "CreateTime": "2014-09-17T11:55:25-07:00", 
+      "CreateTime": "2014-09-17T11:55:25-07:00",
       "LastUpdatedTime": "2014-09-18T13:45:12-07:00"
     }
-  }, 
+  },
   "time": "2015-07-28T10:35:07.663-07:00"
 }
-
-can i organize timesheets by job ? 
-and review reports like this ?
+```
