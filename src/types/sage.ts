@@ -39,7 +39,15 @@ export interface SageReport {
   dailySummaries: DailySummary[];
 }
 
-// Raw project report from QBO
+// Attachment (photo/file) from TSheets
+export interface Attachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+}
+
+// Raw project report from TSheets
 export interface ProjectReport {
   jobName: string;
   startDate: string;
@@ -56,7 +64,9 @@ export interface ProjectReport {
     description: string;
     billableStatus: string;
     hourlyRate: number;
+    attachments: Attachment[];
   }>;
+  attachments: Attachment[];
 }
 
 // Export format options

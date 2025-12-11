@@ -1,22 +1,21 @@
 import { z } from 'zod';
-import { QBOApi } from '../api/qbo.js';
+import { TSheetsApi } from '../api/tsheets.js';
 import { ProjectReport } from '../types/sage.js';
 import { isValidDateString } from '../utils/date.js';
-import { parseNaturalDate, parseJobIdentifier } from '../utils/date-parser.js';
+import { parseNaturalDate } from '../utils/date-parser.js';
 
 export const GetProjectReportArgsSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   dateRange: z.string().optional(), // Natural language like "last week", "this month"
-  jobName: z.string().optional(),
-  jobIdentifier: z.string().optional(), // Can include number + name like "25802 MMC Fort Hamilton"
+  projectName: z.string().optional(), // TSheets jobcode name
 });
 
 export type GetProjectReportArgs = z.infer<typeof GetProjectReportArgsSchema>;
 
 export async function getProjectReport(
   args: GetProjectReportArgs,
-  qboApi: QBOApi
+  tsheetsApi: TSheetsApi
 ): Promise<ProjectReport> {
   // Parse date range - support natural language or explicit dates
   let startDate: string;
@@ -43,106 +42,67 @@ export async function getProjectReport(
     endDate = parsed.endDate;
   }
 
-  // Parse job identifier - support "25802 MMC Fort Hamilton" format
-  let jobName: string | undefined;
-  let jobNumber: string | undefined;
+  const projectName = args.projectName;
+  const resolvedProjectName = projectName || 'All Projects';
 
-  if (args.jobIdentifier) {
-    const parsed = parseJobIdentifier(args.jobIdentifier);
-    jobName = parsed.jobName;
-    jobNumber = parsed.jobNumber;
-    console.error(`[GetProjectReport] Parsed job identifier: Number=${jobNumber}, Name=${jobName}`);
-  } else if (args.jobName) {
-    jobName = args.jobName;
-  }
+  console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${projectName ? ` (Project: ${projectName})` : ' (All Projects)'}`);
 
-  const searchJobName = jobName || (jobNumber ? jobNumber : undefined);
-
-  console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${searchJobName ? ` (Job: ${searchJobName})` : ' (All Jobs)'}`);
-
-  let customerId: string | undefined;
-  let resolvedJobName = searchJobName || 'All Jobs';
-
-  // If job identifier provided, search for the customer
-  if (searchJobName) {
-    const customer = await qboApi.getCustomerByName(searchJobName);
-
-    if (!customer) {
-      // Try searching for partial matches
-      const customers = await qboApi.searchCustomers(searchJobName);
-
-      if (customers.length === 0) {
-        throw new Error(
-          `No job found with name: "${searchJobName}"\n\n` +
-          `Troubleshooting tips:\n` +
-          `- Check the job name spelling in QuickBooks Online\n` +
-          `- Try using a partial name (e.g., "Maimonides" instead of full name)\n` +
-          `- Verify the customer/job exists in your QBO account`
-        );
-      }
-
-      if (customers.length === 1) {
-        customerId = customers[0].Id;
-        resolvedJobName = customers[0].DisplayName;
-        console.error(`[GetProjectReport] Found matching job: ${resolvedJobName} (ID: ${customerId})`);
-      } else {
-        // Multiple matches found
-        const matches = customers.map(c => c.DisplayName).join(', ');
-        throw new Error(
-          `Multiple jobs found matching "${searchJobName}": ${matches}. Please provide exact job name.`
-        );
-      }
-    } else {
-      customerId = customer.Id;
-      resolvedJobName = customer.DisplayName;
-      console.error(`[GetProjectReport] Using exact job match: ${resolvedJobName} (ID: ${customerId})`);
-    }
-  }
-
-  // Query time activities
-  const timeActivities = await qboApi.queryTimeActivities(
+  // Get timesheets from TSheets
+  const timesheets = await tsheetsApi.getTimesheetsForDateRange(
     startDate,
     endDate,
-    customerId
+    projectName
   );
 
   // Check if no data was found
-  if (timeActivities.length === 0) {
-    const jobInfo = searchJobName ? ` for job "${resolvedJobName}"` : ' for any jobs';
-    console.error(`[GetProjectReport] WARNING: No timesheet data found${jobInfo} between ${startDate} and ${endDate}`);
+  if (timesheets.length === 0) {
+    const projectInfo = projectName ? ` for project "${projectName}"` : ' for any projects';
+    console.error(`[GetProjectReport] WARNING: No timesheet data found${projectInfo} between ${startDate} and ${endDate}`);
 
     // Return informative result instead of error
     return {
-      jobName: resolvedJobName,
+      jobName: resolvedProjectName,
       startDate,
       endDate,
       totalEntries: 0,
       totalHours: 0,
       timeActivities: [],
+      attachments: [],
     };
   }
 
-  console.error(`[GetProjectReport] Processing ${timeActivities.length} time activities`);
+  console.error(`[GetProjectReport] Processing ${timesheets.length} timesheet entries`);
 
   // Transform to report format
-  const transformedActivities = timeActivities.map(activity => {
-    const employeeName = activity.EmployeeRef?.name ||
-                        activity.VendorRef?.name ||
-                        'Unknown';
-    const customerName = activity.CustomerRef?.name || 'Unknown';
-    const hours = activity.Hours || 0;
-    const minutes = activity.Minutes || 0;
+  const transformedActivities = timesheets.map(timesheet => {
+    const employeeName = timesheet.user 
+      ? `${timesheet.user.first_name} ${timesheet.user.last_name}`.trim()
+      : 'Unknown';
+    
+    const jobName = timesheet.jobcode?.name || 'Unknown';
+    const durationHours = timesheet.duration / 3600; // Convert seconds to hours
+    const hours = Math.floor(durationHours);
+    const minutes = Math.round((durationHours - hours) * 60);
+
+    // Collect attachments (photos)
+    const attachments = (timesheet.files || []).map(file => ({
+      id: file.id.toString(),
+      fileName: file.file_name,
+      fileUrl: file.file_url,
+      fileSize: file.file_size,
+    }));
 
     return {
-      id: activity.Id,
-      date: activity.TxnDate,
+      id: timesheet.id.toString(),
+      date: timesheet.date,
       employeeName,
-      jobName: customerName,
+      jobName,
       hours,
       minutes,
-      description: activity.Description || '',
-      billableStatus: activity.BillableStatus || 'NotBillable',
-      hourlyRate: activity.HourlyRate || 0,
+      description: timesheet.notes || '',
+      billableStatus: 'NotBillable', // TSheets doesn't have this concept by default
+      hourlyRate: 0, // TSheets stores this differently
+      attachments,
     };
   });
 
@@ -151,14 +111,18 @@ export async function getProjectReport(
     return sum + activity.hours + activity.minutes / 60;
   }, 0);
 
-  console.error(`[GetProjectReport] Report complete: ${transformedActivities.length} entries, ${totalHours.toFixed(2)} total hours`);
+  // Collect all attachments
+  const allAttachments = transformedActivities.flatMap(a => a.attachments);
+
+  console.error(`[GetProjectReport] Report complete: ${transformedActivities.length} entries, ${totalHours.toFixed(2)} total hours, ${allAttachments.length} attachments`);
 
   return {
-    jobName: resolvedJobName,
+    jobName: resolvedProjectName,
     startDate,
     endDate,
     totalEntries: transformedActivities.length,
     totalHours: parseFloat(totalHours.toFixed(2)),
     timeActivities: transformedActivities,
+    attachments: allAttachments,
   };
 }

@@ -9,8 +9,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
 import { TokenManager } from './auth/token-manager.js';
-import { QBOClient } from './api/client.js';
-import { QBOApi } from './api/qbo.js';
+import { TSheetsClient } from './api/tsheets-client.js';
+import { TSheetsApi } from './api/tsheets.js';
 import {
   getProjectReport,
   GetProjectReportArgsSchema,
@@ -30,9 +30,9 @@ dotenv.config();
 
 // Validate required environment variables
 const requiredEnvVars = [
-  'INTUIT_CLIENT_ID',
-  'INTUIT_CLIENT_SECRET',
-  'INTUIT_REDIRECT_URI',
+  'TSHEETS_CLIENT_ID',
+  'TSHEETS_CLIENT_SECRET',
+  'TSHEETS_REDIRECT_URI',
   'TOKEN_FILE_PATH',
 ];
 
@@ -42,25 +42,22 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
-// Check if using sandbox mode (default to false for production)
-const useSandbox = process.env.USE_SANDBOX === 'true';
-console.error(`[MCP Server] Environment: ${useSandbox ? '🧪 SANDBOX' : '🏭 PRODUCTION'}`);
-
 // Initialize services
+console.error('[MCP Server] Using TSheets API');
 const tokenManager = new TokenManager(process.env.TOKEN_FILE_PATH!);
-const qboClient = new QBOClient(tokenManager, {
-  clientId: process.env.INTUIT_CLIENT_ID!,
-  clientSecret: process.env.INTUIT_CLIENT_SECRET!,
-  redirectUri: process.env.INTUIT_REDIRECT_URI!,
-}, useSandbox);
-const qboApi = new QBOApi(qboClient);
+const tsheetsClient = new TSheetsClient(tokenManager, {
+  clientId: process.env.TSHEETS_CLIENT_ID!,
+  clientSecret: process.env.TSHEETS_CLIENT_SECRET!,
+  redirectUri: process.env.TSHEETS_REDIRECT_URI!,
+});
+const tsheetsApi = new TSheetsApi(tsheetsClient);
 
 // Define MCP tools
 const tools: Tool[] = [
   {
     name: 'get_project_report',
     description:
-      'Get timesheet data from QuickBooks Online. Supports natural language dates like "last week", "this month". Can search by job number + name (e.g., "25802 MMC Fort Hamilton").',
+      'Get timesheet data from TSheets including employee hours, notes, and photo attachments. Supports natural language dates like "last week", "this month". Can filter by project/jobcode name.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -76,13 +73,9 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Alternative: Explicit end date in YYYY-MM-DD format',
         },
-        jobIdentifier: {
+        projectName: {
           type: 'string',
-          description: 'Job to filter by. Can be: job number, job name, or "number name" (e.g., "25802 MMC Fort Hamilton")',
-        },
-        jobName: {
-          type: 'string',
-          description: 'Alternative: Job/customer name to filter results',
+          description: 'Project/jobcode name to filter results (partial match supported)',
         },
       },
       required: [],
@@ -91,7 +84,7 @@ const tools: Tool[] = [
   {
     name: 'format_sage',
     description:
-      'Transform raw QuickBooks timesheet data into Sage 100 Contractor format. Converts hours/minutes to decimal hours, sorts by date and employee, and calculates summaries.',
+      'Transform raw TSheets timesheet data into Sage 100 Contractor format. Converts hours/minutes to decimal hours, sorts by date and employee, and calculates summaries.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -152,7 +145,7 @@ const tools: Tool[] = [
 // Create MCP server
 const server = new Server(
   {
-    name: 'quickbooks-sage-mcp',
+    name: 'tsheets-sage-mcp',
     version: '1.0.0',
   },
   {
@@ -175,8 +168,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'get_project_report': {
         const validated = GetProjectReportArgsSchema.parse(args);
-        await qboClient.initialize();
-        const result = await getProjectReport(validated, qboApi);
+        await tsheetsClient.initialize();
+        const result = await getProjectReport(validated, tsheetsApi);
         return {
           content: [
             {
@@ -248,7 +241,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('QuickBooks-Sage MCP Server running on stdio');
+  console.error('TSheets-Sage MCP Server running on stdio');
 }
 
 main().catch((error) => {

@@ -7,9 +7,8 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "auth": "tsx scripts/auth.ts",
-    "test:qbo": "tsx scripts/test-qbo.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "auth": "tsx scripts/auth-tsheets.ts",
+    "test": "tsx scripts/test-tsheets.ts"
   },
   "repository": {
     "type": "git",
@@ -17,7 +16,7 @@
   },
   "keywords": [
     "mcp",
-    "quickbooks",
+    "tsheets",
     "sage",
     "timesheet"
   ],
@@ -27,7 +26,7 @@
     "url": "https://github.com/cykj40/Tsheets-MCP/issues"
   },
   "homepage": "https://github.com/cykj40/Tsheets-MCP#readme",
-  "description": "MCP server for QuickBooks Online to Sage 100 Contractor timesheet automation",
+  "description": "MCP server for TSheets to Sage 100 Contractor timesheet automation",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "cors": "^2.8.5",
