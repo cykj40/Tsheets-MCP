@@ -3,7 +3,7 @@
  */
 
 import { TSheetsClient } from './tsheets-client.js';
-import { TSheetsResponseSchema, Timesheet, User, Jobcode, File } from '../types/tsheets.js';
+import { TSheetsResponseSchema, Timesheet, User, Jobcode, File, ProjectReportResponseSchema, ProjectReportResponse } from '../types/tsheets.js';
 
 export interface TimesheetWithDetails extends Timesheet {
   user?: User;
@@ -153,5 +153,32 @@ export class TSheetsApi {
    */
   async downloadFile(fileUrl: string): Promise<Buffer> {
     return this.client.downloadFile(fileUrl);
+  }
+
+  /**
+   * Get aggregated project report for a date range
+   */
+  async getProjectReportForDateRange(
+    startDate: string, // YYYY-MM-DD
+    endDate: string, // YYYY-MM-DD
+    jobcodeId?: number
+  ): Promise<ProjectReportResponse> {
+    console.error(`[TSheetsApi] Getting project report from ${startDate} to ${endDate}`);
+
+    const params: any = {
+      start_date: startDate,
+      end_date: endDate,
+      jobcode_type: 'all',
+    };
+
+    if (jobcodeId) {
+      params.jobcode_ids = [jobcodeId];
+      console.error(`[TSheetsApi] Filtering by jobcode ID: ${jobcodeId}`);
+    }
+
+    const response = await this.client.getProjectReport(params);
+    const validated = ProjectReportResponseSchema.parse(response);
+
+    return validated;
   }
 }

@@ -15,6 +15,10 @@ import {
   getProjectReport,
   GetProjectReportArgsSchema,
 } from './tools/get-project-report.js';
+import {
+  getProjectReportSummary,
+  GetProjectReportSummaryArgsSchema,
+} from './tools/get-project-report-summary.js';
 import { formatSage, FormatSageArgsSchema } from './tools/format-sage.js';
 import {
   exportClipboard,
@@ -72,9 +76,36 @@ try {
 // Define MCP tools
 const tools: Tool[] = [
   {
+    name: 'get_project_report_summary',
+    description:
+      'Get FAST aggregated timesheet summary from TSheets Project Report API. Returns total hours by user and jobcode. Use this for quick summaries and Sage reports. Much faster than detailed report.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dateRange: {
+          type: 'string',
+          description: 'Natural language date range: "last week", "this week", "this month", "last month", "week of 11/3/2025"',
+        },
+        startDate: {
+          type: 'string',
+          description: 'Alternative: Explicit start date in YYYY-MM-DD format',
+        },
+        endDate: {
+          type: 'string',
+          description: 'Alternative: Explicit end date in YYYY-MM-DD format',
+        },
+        jobcodeId: {
+          type: 'number',
+          description: 'Optional: Filter by specific jobcode ID (e.g., 25802)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'get_project_report',
     description:
-      'Get timesheet data from TSheets including employee hours, notes, and photo attachments. Supports natural language dates like "last week", "this month". Can filter by project/jobcode name or numeric jobcode ID.',
+      'Get DETAILED timesheet data from TSheets including individual entries, employee hours, notes, and photo attachments. Slower but includes all details. Use get_project_report_summary for faster aggregated data.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -189,7 +220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     console.error(`[MCP Server] Arguments: ${JSON.stringify(args || {})}`);
 
     // Check if services are initialized for tools that need them
-    if (name === 'get_project_report') {
+    if (name === 'get_project_report' || name === 'get_project_report_summary') {
       if (!tsheetsClient || !tsheetsApi || !tokenManager) {
         throw new Error(
           'TSheets services not initialized. Please check your environment variables:\n' +
@@ -203,6 +234,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     switch (name) {
+      case 'get_project_report_summary': {
+        const validated = GetProjectReportSummaryArgsSchema.parse(args || {});
+        await tsheetsClient!.initialize();
+        const result = await getProjectReportSummary(validated, tsheetsApi!);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
       case 'get_project_report': {
         // Safe argument parsing with default to empty object
         const validated = GetProjectReportArgsSchema.parse(args || {});

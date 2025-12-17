@@ -88,3 +88,40 @@ export const TSheetsResponseSchema = z.object({
 });
 
 export type TSheetsResponse = z.infer<typeof TSheetsResponseSchema>;
+
+// Project Report Types
+export const ProjectReportTotalsSchema = z.object({
+  users: z.record(z.string(), z.union([z.string(), z.number()])), // user_id -> hours
+  groups: z.record(z.string(), z.union([z.string(), z.number()])), // group_id -> hours
+  jobcodes: z.record(z.string(), z.union([z.string(), z.number()])), // jobcode_id -> hours
+  customfields: z.record(z.string(), z.record(z.string(), z.union([z.string(), z.number()]))).optional(), // customfield_id -> item_id -> hours
+});
+
+export const ProjectReportSchema = z.object({
+  start_date: z.string(),
+  end_date: z.string(),
+  totals: ProjectReportTotalsSchema,
+});
+
+export const ProjectReportResponseSchema = z.object({
+  results: z.object({
+    filters: z.object({
+      user_ids: z.array(z.number()).optional(),
+      group_ids: z.array(z.number()).optional(),
+      jobcode_type: z.string().optional(),
+      customfielditems: z.record(z.string(), z.array(z.string())).optional(),
+      jobcode_ids: z.array(z.union([z.string(), z.number()])).optional(),
+    }).optional(),
+    project_report: ProjectReportSchema,
+  }),
+  supplemental_data: z.object({
+    users: z.record(z.string(), UserSchema).optional(),
+    jobcodes: z.record(z.string(), JobcodeSchema).optional(),
+    customfields: z.record(z.string(), z.any()).optional(),
+    customfielditems: z.record(z.string(), z.any()).optional(),
+  }).optional(),
+});
+
+export type ProjectReportTotals = z.infer<typeof ProjectReportTotalsSchema>;
+export type ProjectReport = z.infer<typeof ProjectReportSchema>;
+export type ProjectReportResponse = z.infer<typeof ProjectReportResponseSchema>;
