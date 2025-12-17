@@ -36,21 +36,38 @@ const requiredEnvVars = [
   'TOKEN_FILE_PATH',
 ];
 
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
-  }
+console.error('[MCP Server] Checking environment variables...');
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingVars.length > 0) {
+  console.error(`[MCP Server] Missing required environment variables: ${missingVars.join(', ')}`);
+  console.error('[MCP Server] Please check your Claude Desktop configuration file');
+} else {
+  console.error('[MCP Server] All required environment variables are set');
 }
 
-// Initialize services
+// Initialize services with error handling
 console.error('[MCP Server] Using TSheets API');
-const tokenManager = new TokenManager(process.env.TOKEN_FILE_PATH!);
-const tsheetsClient = new TSheetsClient(tokenManager, {
-  clientId: process.env.TSHEETS_CLIENT_ID!,
-  clientSecret: process.env.TSHEETS_CLIENT_SECRET!,
-  redirectUri: process.env.TSHEETS_REDIRECT_URI!,
-});
-const tsheetsApi = new TSheetsApi(tsheetsClient);
+let tokenManager: TokenManager | null = null;
+let tsheetsClient: TSheetsClient | null = null;
+let tsheetsApi: TSheetsApi | null = null;
+
+try {
+  if (process.env.TOKEN_FILE_PATH) {
+    tokenManager = new TokenManager(process.env.TOKEN_FILE_PATH);
+
+    if (process.env.TSHEETS_CLIENT_ID && process.env.TSHEETS_CLIENT_SECRET && process.env.TSHEETS_REDIRECT_URI) {
+      tsheetsClient = new TSheetsClient(tokenManager, {
+        clientId: process.env.TSHEETS_CLIENT_ID,
+        clientSecret: process.env.TSHEETS_CLIENT_SECRET,
+        redirectUri: process.env.TSHEETS_REDIRECT_URI,
+      });
+      tsheetsApi = new TSheetsApi(tsheetsClient);
+      console.error('[MCP Server] TSheets client initialized successfully');
+    }
+  }
+} catch (error) {
+  console.error('[MCP Server] Error initializing services:', error);
+}
 
 // Define MCP tools
 const tools: Tool[] = [
@@ -168,12 +185,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
+    console.error(`[MCP Server] Tool called: ${name}`);
+    console.error(`[MCP Server] Arguments: ${JSON.stringify(args || {})}`);
+
+    // Check if services are initialized for tools that need them
+    if (name === 'get_project_report') {
+      if (!tsheetsClient || !tsheetsApi || !tokenManager) {
+        throw new Error(
+          'TSheets services not initialized. Please check your environment variables:\n' +
+          '- TSHEETS_CLIENT_ID\n' +
+          '- TSHEETS_CLIENT_SECRET\n' +
+          '- TSHEETS_REDIRECT_URI\n' +
+          '- TOKEN_FILE_PATH\n' +
+          'Also ensure you have run authentication (npm run auth) to create the token file.'
+        );
+      }
+    }
 
     switch (name) {
       case 'get_project_report': {
-        const validated = GetProjectReportArgsSchema.parse(args);
-        await tsheetsClient.initialize();
-        const result = await getProjectReport(validated, tsheetsApi);
+        // Safe argument parsing with default to empty object
+        const validated = GetProjectReportArgsSchema.parse(args || {});
+        await tsheetsClient!.initialize();
+        const result = await getProjectReport(validated, tsheetsApi!);
         return {
           content: [
             {
@@ -185,7 +219,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'format_sage': {
-        const validated = FormatSageArgsSchema.parse(args);
+        const validated = FormatSageArgsSchema.parse(args || {});
         const result = formatSage(validated);
         return {
           content: [
@@ -198,7 +232,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'export_clipboard': {
-        const validated = ExportClipboardArgsSchema.parse(args);
+        const validated = ExportClipboardArgsSchema.parse(args || {});
         const result = exportClipboard(validated);
         return {
           content: [
@@ -211,7 +245,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'export_document': {
-        const validated = ExportDocumentArgsSchema.parse(args);
+        const validated = ExportDocumentArgsSchema.parse(args || {});
         const result = await exportDocument(validated);
         return {
           content: [
@@ -229,6 +263,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
+    console.error(`[MCP Server] Error executing tool: ${errorMessage}`);
     return {
       content: [
         {

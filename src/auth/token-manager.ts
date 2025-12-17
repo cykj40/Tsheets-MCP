@@ -18,7 +18,11 @@ export class TokenManager {
   private tokenFilePath: string;
 
   constructor(tokenFilePath: string) {
+    if (!tokenFilePath) {
+      throw new Error('Token file path is required');
+    }
     this.tokenFilePath = tokenFilePath;
+    console.error(`[TokenManager] Initialized with token file: ${tokenFilePath}`);
   }
 
   /**
@@ -26,19 +30,53 @@ export class TokenManager {
    * Returns null if file doesn't exist or tokens are expired
    */
   async loadTokens(): Promise<TSheetsStoredToken | null> {
+    console.error(`[TokenManager] Attempting to load tokens from: ${this.tokenFilePath}`);
+
     try {
+      // Check if file path is defined
+      if (!this.tokenFilePath) {
+        console.error('[TokenManager] Error: Token file path is undefined');
+        return null;
+      }
+
+      // Read file
       const data = await fs.readFile(this.tokenFilePath, 'utf-8');
+
+      // Check if file is empty
+      if (!data || data.trim() === '') {
+        console.error('[TokenManager] Error: Token file is empty');
+        return null;
+      }
+
+      // Parse JSON
       const parsed = JSON.parse(data);
 
+      // Validate schema
       const tokens = TSheetsStoredTokenSchema.parse(parsed);
+
       // Check if token is expired (with buffer)
       const now = Date.now();
       if (tokens.expiresAt - TOKEN_EXPIRY_BUFFER_MS <= now) {
+        console.error('[TokenManager] Token is expired');
         return null; // Token expired
       }
+
+      console.error('[TokenManager] Tokens loaded successfully');
       return tokens;
     } catch (error) {
-      // File doesn't exist or invalid format
+      if (error instanceof Error) {
+        if ('code' in error && error.code === 'ENOENT') {
+          console.error('[TokenManager] Error: Token file does not exist. Run authentication first.');
+        } else if (error.name === 'SyntaxError') {
+          console.error('[TokenManager] Error: Token file contains invalid JSON');
+        } else if (error.name === 'ZodError') {
+          console.error('[TokenManager] Error: Token file has invalid format');
+        } else {
+          console.error(`[TokenManager] Error loading tokens: ${error.message}`);
+        }
+      } else {
+        console.error(`[TokenManager] Unknown error loading tokens: ${String(error)}`);
+      }
       return null;
     }
   }
@@ -72,11 +110,25 @@ export class TokenManager {
    */
   async getRefreshToken(): Promise<string | null> {
     try {
+      if (!this.tokenFilePath) {
+        console.error('[TokenManager] Error: Token file path is undefined');
+        return null;
+      }
+
       const data = await fs.readFile(this.tokenFilePath, 'utf-8');
+
+      if (!data || data.trim() === '') {
+        console.error('[TokenManager] Error: Token file is empty');
+        return null;
+      }
+
       const parsed = JSON.parse(data);
       const tokens = TSheetsStoredTokenSchema.parse(parsed);
       return tokens.refreshToken;
     } catch (error) {
+      if (error instanceof Error) {
+        console.error(`[TokenManager] Error getting refresh token: ${error.message}`);
+      }
       return null;
     }
   }

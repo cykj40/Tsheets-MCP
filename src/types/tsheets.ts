@@ -15,7 +15,13 @@ export const TimesheetSchema = z.object({
   duration: z.number(), // seconds
   date: z.string(), // YYYY-MM-DD
   notes: z.string().optional(),
-  customfields: z.record(z.string()).optional(),
+  customfields: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).transform(val => {
+    // Convert all values to strings for consistency
+    if (!val) return undefined;
+    return Object.fromEntries(
+      Object.entries(val).map(([k, v]) => [k, v === null ? '' : String(v)])
+    );
+  }).optional(),
   created: z.string().optional(),
   last_modified: z.string(),
   attached_files: z.array(z.number()).optional(), // file IDs
