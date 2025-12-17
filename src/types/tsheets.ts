@@ -16,7 +16,7 @@ export const TimesheetSchema = z.object({
   date: z.string(), // YYYY-MM-DD
   notes: z.string().optional(),
   customfields: z.record(z.string()).optional(),
-  created: z.string(),
+  created: z.string().optional(),
   last_modified: z.string(),
   attached_files: z.array(z.number()).optional(), // file IDs
 });
@@ -30,7 +30,7 @@ export const UserSchema = z.object({
   last_name: z.string(),
   username: z.string().optional(),
   email: z.string().optional(),
-  employee_number: z.string().optional(),
+  employee_number: z.union([z.string(), z.number()]).transform(val => String(val)).optional(),
   active: z.boolean(),
 });
 
@@ -42,7 +42,7 @@ export const JobcodeSchema = z.object({
   parent_id: z.number().optional(),
   name: z.string(),
   short_code: z.string().optional(),
-  type: z.enum(['regular', 'pto', 'paid_break', 'unpaid_break']),
+  type: z.enum(['regular', 'pto', 'paid_break', 'unpaid_break', 'unpaid_time_off']),
   active: z.boolean(),
   has_children: z.boolean(),
 });
