@@ -57,7 +57,7 @@ const tools: Tool[] = [
   {
     name: 'get_project_report',
     description:
-      'Get timesheet data from TSheets including employee hours, notes, and photo attachments. Supports natural language dates like "last week", "this month". Can filter by project/jobcode name.',
+      'Get timesheet data from TSheets including employee hours, notes, and photo attachments. Supports natural language dates like "last week", "this month". Can filter by project/jobcode name or numeric jobcode ID.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -75,7 +75,11 @@ const tools: Tool[] = [
         },
         projectName: {
           type: 'string',
-          description: 'Project/jobcode name to filter results (partial match supported)',
+          description: 'Project/jobcode name or numeric ID (e.g., "25802" or "Fort Hamilton Parkway"). Auto-detects if numeric. Partial match supported for names.',
+        },
+        jobcodeId: {
+          type: 'number',
+          description: 'Alternative: Direct numeric jobcode ID for exact matching (e.g., 25802)',
         },
       },
       required: [],

@@ -20,7 +20,8 @@ export class TSheetsApi {
   async getTimesheetsForDateRange(
     startDate: string, // YYYY-MM-DD
     endDate: string, // YYYY-MM-DD
-    jobcodeName?: string // optional project filter
+    jobcodeName?: string, // optional project name filter
+    jobcodeId?: number // optional direct jobcode ID
   ): Promise<TimesheetWithDetails[]> {
     console.error(`[TSheetsApi] Getting timesheets from ${startDate} to ${endDate}`);
 
@@ -31,20 +32,38 @@ export class TSheetsApi {
 
     let jobcodeFilter: number[] | undefined;
 
-    if (jobcodeName) {
-      // Find matching jobcode(s) by name (case-insensitive partial match)
-      const matchingJobcodes = Object.values(allJobcodes).filter(jc =>
-        jc.name.toLowerCase().includes(jobcodeName.toLowerCase()) ||
-        (jc.short_code && jc.short_code.toLowerCase().includes(jobcodeName.toLowerCase()))
-      );
-
-      if (matchingJobcodes.length === 0) {
-        console.error(`[TSheetsApi] No jobcode found matching: ${jobcodeName}`);
+    if (jobcodeId) {
+      // Direct ID lookup - check if it exists
+      const jobcode = allJobcodes[jobcodeId.toString()];
+      if (!jobcode) {
+        console.error(`[TSheetsApi] No jobcode found with ID: ${jobcodeId}`);
         return [];
       }
+      jobcodeFilter = [jobcodeId];
+      console.error(`[TSheetsApi] Using jobcode ID: ${jobcodeId} (${jobcode.name})`);
+    } else if (jobcodeName) {
+      // Auto-detect: if jobcodeName is numeric, try ID first, then fall back to name search
+      const numericId = parseInt(jobcodeName, 10);
+      if (!isNaN(numericId) && allJobcodes[numericId.toString()]) {
+        // It's a valid numeric ID
+        const jobcode = allJobcodes[numericId.toString()];
+        jobcodeFilter = [numericId];
+        console.error(`[TSheetsApi] Detected numeric ID: ${numericId} (${jobcode.name})`);
+      } else {
+        // Find matching jobcode(s) by name (case-insensitive partial match)
+        const matchingJobcodes = Object.values(allJobcodes).filter(jc =>
+          jc.name.toLowerCase().includes(jobcodeName.toLowerCase()) ||
+          (jc.short_code && jc.short_code.toLowerCase().includes(jobcodeName.toLowerCase()))
+        );
 
-      jobcodeFilter = matchingJobcodes.map(jc => jc.id);
-      console.error(`[TSheetsApi] Found ${jobcodeFilter.length} matching jobcode(s)`);
+        if (matchingJobcodes.length === 0) {
+          console.error(`[TSheetsApi] No jobcode found matching: ${jobcodeName}`);
+          return [];
+        }
+
+        jobcodeFilter = matchingJobcodes.map(jc => jc.id);
+        console.error(`[TSheetsApi] Found ${jobcodeFilter.length} matching jobcode(s) by name`);
+      }
     }
 
     // Step 2: Get timesheets

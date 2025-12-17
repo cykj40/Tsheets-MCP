@@ -8,7 +8,8 @@ export const GetProjectReportArgsSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   dateRange: z.string().optional(), // Natural language like "last week", "this month"
-  projectName: z.string().optional(), // TSheets jobcode name
+  projectName: z.string().optional(), // TSheets jobcode name or ID (e.g., "25802" or "Fort Hamilton Parkway")
+  jobcodeId: z.number().optional(), // Direct jobcode ID for exact matching
 });
 
 export type GetProjectReportArgs = z.infer<typeof GetProjectReportArgsSchema>;
@@ -43,15 +44,17 @@ export async function getProjectReport(
   }
 
   const projectName = args.projectName;
-  const resolvedProjectName = projectName || 'All Projects';
+  const jobcodeId = args.jobcodeId;
+  const resolvedProjectName = projectName || (jobcodeId ? `Job #${jobcodeId}` : 'All Projects');
 
-  console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${projectName ? ` (Project: ${projectName})` : ' (All Projects)'}`);
+  console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${projectName ? ` (Project: ${projectName})` : jobcodeId ? ` (Jobcode ID: ${jobcodeId})` : ' (All Projects)'}`);
 
   // Get timesheets from TSheets
   const timesheets = await tsheetsApi.getTimesheetsForDateRange(
     startDate,
     endDate,
-    projectName
+    projectName,
+    jobcodeId
   );
 
   // Check if no data was found
