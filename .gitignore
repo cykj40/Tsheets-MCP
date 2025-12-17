@@ -6,7 +6,6 @@ dist/
 
 # Environment variables
 .env
-.env.example
 
 # Token storage
 .tokens.json
@@ -17,6 +16,7 @@ dist/
 *.swp
 *.swo
 *~
+.claude/
 
 # OS
 .DS_Store
@@ -37,7 +37,7 @@ coverage/
 .tsbuildinfo
 
 .cursor
-
 .cursor/
 
+# Private setup guides (may contain user-specific paths)
 SETUP_GUIDE.md
