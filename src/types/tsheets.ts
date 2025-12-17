@@ -57,7 +57,7 @@ export const FileSchema = z.object({
   file_size: z.number(), // bytes
   file_url: z.string(), // download URL
   active: z.boolean(),
-  created: z.string(),
+  created: z.string().optional(), // TSheets sometimes omits this
   linked_objects: z.array(z.object({
     id: z.number(),
     type: z.string(), // e.g., "timesheet"
