@@ -3,7 +3,23 @@
  */
 
 import { TSheetsClient } from './tsheets-client.js';
-import { TSheetsResponseSchema, Timesheet, User, Jobcode, File, ProjectReportResponseSchema, ProjectReportResponse } from '../types/tsheets.js';
+import { 
+  TSheetsResponseSchema, 
+  Timesheet, 
+  User, 
+  Jobcode, 
+  File, 
+  ProjectReportResponseSchema, 
+  ProjectReportResponse,
+  Project,
+  ProjectSchema,
+  ProjectsResponseSchema,
+  ProjectNote,
+  ProjectNoteSchema,
+  ProjectNotesResponseSchema,
+  ProjectFile,
+  ProjectFileSchema,
+} from '../types/tsheets.js';
 
 export interface TimesheetWithDetails extends Timesheet {
   user?: User;
@@ -180,5 +196,184 @@ export class TSheetsApi {
     const validated = ProjectReportResponseSchema.parse(response);
 
     return validated;
+  }
+
+  /**
+   * Search jobcodes by name or ID
+   * Allows partial matching on name or short_code
+   */
+  async searchJobcodes(search?: string, active: 'yes' | 'no' | 'both' = 'both'): Promise<Jobcode[]> {
+    console.error(`[TSheetsApi] Searching jobcodes${search ? ` for: ${search}` : ''}...`);
+    
+    // If search is a numeric ID, try to get it directly
+    const numericId = search ? parseInt(search, 10) : NaN;
+    if (!isNaN(numericId)) {
+      try {
+        const response = await this.client.searchJobcodes({ ids: [numericId], active });
+        const validated = TSheetsResponseSchema.parse(response);
+        const jobcodes = Object.values(validated.results.jobcodes || {});
+        if (jobcodes.length > 0) {
+          console.error(`[TSheetsApi] Found jobcode by ID: ${numericId}`);
+          return jobcodes;
+        }
+      } catch {
+        // Fall through to name search
+      }
+    }
+
+    // Get all jobcodes and filter client-side for partial matching
+    const response = await this.client.searchJobcodes({ active });
+    const validated = TSheetsResponseSchema.parse(response);
+    const allJobcodes = Object.values(validated.results.jobcodes || {});
+
+    if (!search) {
+      console.error(`[TSheetsApi] Returning all ${allJobcodes.length} jobcodes`);
+      return allJobcodes;
+    }
+
+    const searchLower = search.toLowerCase();
+    const matches = allJobcodes.filter(jc =>
+      jc.name.toLowerCase().includes(searchLower) ||
+      (jc.short_code && jc.short_code.toLowerCase().includes(searchLower)) ||
+      jc.id.toString() === search
+    );
+
+    console.error(`[TSheetsApi] Found ${matches.length} jobcode(s) matching "${search}"`);
+    return matches;
+  }
+
+  /**
+   * Get project by jobcode ID
+   * Projects in TSheets are linked to jobcodes
+   */
+  async getProjectByJobcodeId(jobcodeId: number): Promise<Project | null> {
+    console.error(`[TSheetsApi] Getting project for jobcode ID: ${jobcodeId}`);
+    
+    try {
+      const response = await this.client.getProjects({ jobcode_ids: [jobcodeId] });
+      const validated = ProjectsResponseSchema.parse(response);
+      const projects = Object.values(validated.results.projects || {});
+      
+      if (projects.length > 0) {
+        console.error(`[TSheetsApi] Found project: ${projects[0].name}`);
+        return projects[0];
+      }
+      
+      console.error(`[TSheetsApi] No project found for jobcode ID: ${jobcodeId}`);
+      return null;
+    } catch (error) {
+      console.error(`[TSheetsApi] Error getting project:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all projects
+   */
+  async getAllProjects(active: 'yes' | 'no' | 'both' = 'both', status?: 'in_progress' | 'complete' | 'cancelled'): Promise<Project[]> {
+    console.error(`[TSheetsApi] Getting all projects...`);
+    
+    try {
+      const response = await this.client.getProjects({ active, status });
+      const validated = ProjectsResponseSchema.parse(response);
+      const projects = Object.values(validated.results.projects || {});
+      console.error(`[TSheetsApi] Found ${projects.length} project(s)`);
+      return projects;
+    } catch (error) {
+      console.error(`[TSheetsApi] Error getting projects:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Get project notes for a project
+   * Returns notes with attached file information
+   */
+  async getProjectNotes(projectId: number): Promise<{
+    notes: ProjectNote[];
+    files: Record<string, ProjectFile>;
+    users: Record<string, User>;
+  }> {
+    console.error(`[TSheetsApi] Getting notes for project ID: ${projectId}`);
+    
+    try {
+      const response = await this.client.getProjectNotes({
+        project_id: projectId,
+        supplemental_data: 'yes',
+      });
+      
+      const validated = ProjectNotesResponseSchema.parse(response);
+      const notes = Object.values(validated.results.project_notes || {});
+      const files = validated.supplemental_data?.files || {};
+      const users = validated.supplemental_data?.users || {};
+      
+      console.error(`[TSheetsApi] Found ${notes.length} note(s) with ${Object.keys(files).length} file(s)`);
+      
+      return {
+        notes,
+        files: files as Record<string, ProjectFile>,
+        users: users as Record<string, User>,
+      };
+    } catch (error) {
+      console.error(`[TSheetsApi] Error getting project notes:`, error);
+      return { notes: [], files: {}, users: {} };
+    }
+  }
+
+  /**
+   * Search projects by name or description
+   */
+  async searchProjects(search?: string): Promise<Project[]> {
+    const projects = await this.getAllProjects();
+    
+    if (!search) {
+      return projects;
+    }
+    
+    const searchLower = search.toLowerCase();
+    return projects.filter(p =>
+      p.name.toLowerCase().includes(searchLower) ||
+      (p.description && p.description.toLowerCase().includes(searchLower))
+    );
+  }
+
+  /**
+   * Get comprehensive project info including notes and timesheets
+   */
+  async getProjectWithDetails(jobcodeId: number): Promise<{
+    jobcode: Jobcode | null;
+    project: Project | null;
+    notes: ProjectNote[];
+    files: Record<string, ProjectFile>;
+    noteAuthors: Record<string, User>;
+  }> {
+    console.error(`[TSheetsApi] Getting comprehensive project details for jobcode: ${jobcodeId}`);
+    
+    // Get jobcode info
+    const jobcodes = await this.searchJobcodes(jobcodeId.toString());
+    const jobcode = jobcodes.length > 0 ? jobcodes[0] : null;
+    
+    // Get project if it exists
+    const project = await this.getProjectByJobcodeId(jobcodeId);
+    
+    // Get notes if project exists
+    let notes: ProjectNote[] = [];
+    let files: Record<string, ProjectFile> = {};
+    let noteAuthors: Record<string, User> = {};
+    
+    if (project) {
+      const notesData = await this.getProjectNotes(project.id);
+      notes = notesData.notes;
+      files = notesData.files;
+      noteAuthors = notesData.users;
+    }
+    
+    return {
+      jobcode,
+      project,
+      notes,
+      files,
+      noteAuthors,
+    };
   }
 }

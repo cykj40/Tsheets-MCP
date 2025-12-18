@@ -125,3 +125,101 @@ export const ProjectReportResponseSchema = z.object({
 export type ProjectReportTotals = z.infer<typeof ProjectReportTotalsSchema>;
 export type ProjectReport = z.infer<typeof ProjectReportSchema>;
 export type ProjectReportResponse = z.infer<typeof ProjectReportResponseSchema>;
+
+// Project Object (linked to jobcode)
+export const ProjectSchema = z.object({
+  id: z.number(),
+  jobcode_id: z.number(),
+  parent_jobcode_id: z.number().optional(),
+  name: z.string(),
+  status: z.enum(['in_progress', 'complete', 'cancelled']).optional(),
+  description: z.string().optional(),
+  start_date: z.string().optional(),
+  due_date: z.string().optional(),
+  completed_date: z.string().optional(),
+  active: z.boolean(),
+  last_modified: z.string().optional(),
+  created: z.string().optional(),
+  linked_objects: z.record(z.string(), z.array(z.number())).optional(),
+});
+
+export type Project = z.infer<typeof ProjectSchema>;
+
+// Project Note Object
+export const ProjectNoteSchema = z.object({
+  id: z.number(),
+  project_id: z.number(),
+  user_id: z.number(),
+  note: z.string(),
+  active: z.boolean(),
+  created: z.string().optional(),
+  last_modified: z.string().optional(),
+  mentions: z.array(z.any()).optional(),
+  files: z.array(z.number()).optional(), // file IDs attached to this note
+  linked_objects: z.record(z.string(), z.array(z.number())).optional(),
+});
+
+export type ProjectNote = z.infer<typeof ProjectNoteSchema>;
+
+// Project Activity Object
+export const ProjectActivitySchema = z.object({
+  id: z.number(),
+  user_id: z.number(),
+  project_id: z.number(),
+  activity_type: z.string(), // 'note', etc.
+  active: z.boolean(),
+  created: z.string().optional(),
+  last_modified: z.string().optional(),
+  unread_replies_count: z.number().optional(),
+  following: z.boolean().optional(),
+  linked_objects: z.record(z.string(), z.array(z.number())).optional(),
+});
+
+export type ProjectActivity = z.infer<typeof ProjectActivitySchema>;
+
+// Extended File Schema (for project notes - has different structure)
+export const ProjectFileSchema = z.object({
+  id: z.number(),
+  uploaded_by_user_id: z.number(),
+  file_name: z.string(),
+  active: z.boolean(),
+  size: z.number().optional(), // Note: uses 'size' not 'file_size' in some responses
+  file_size: z.number().optional(),
+  file_url: z.string().optional(),
+  last_modified: z.string().optional(),
+  created: z.string().optional(),
+  linked_objects: z.record(z.string(), z.array(z.number())).optional(),
+  meta_data: z.record(z.string(), z.string()).optional(),
+});
+
+export type ProjectFile = z.infer<typeof ProjectFileSchema>;
+
+// Projects API Response
+export const ProjectsResponseSchema = z.object({
+  results: z.object({
+    projects: z.record(z.string(), ProjectSchema).optional(),
+  }),
+  supplemental_data: z.object({
+    users: z.record(z.string(), UserSchema).optional(),
+    jobcodes: z.record(z.string(), JobcodeSchema).optional(),
+  }).optional(),
+  more: z.boolean().optional(),
+});
+
+export type ProjectsResponse = z.infer<typeof ProjectsResponseSchema>;
+
+// Project Notes API Response
+export const ProjectNotesResponseSchema = z.object({
+  results: z.object({
+    project_notes: z.record(z.string(), ProjectNoteSchema).optional(),
+  }),
+  supplemental_data: z.object({
+    users: z.record(z.string(), UserSchema).optional(),
+    projects: z.record(z.string(), ProjectSchema).optional(),
+    project_activities: z.record(z.string(), ProjectActivitySchema).optional(),
+    files: z.record(z.string(), ProjectFileSchema).optional(),
+  }).optional(),
+  more: z.boolean().optional(),
+});
+
+export type ProjectNotesResponse = z.infer<typeof ProjectNotesResponseSchema>;

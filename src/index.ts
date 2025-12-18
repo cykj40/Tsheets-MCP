@@ -28,6 +28,26 @@ import {
   exportDocument,
   ExportDocumentArgsSchema,
 } from './tools/export-document.js';
+import { searchJobcodes } from './tools/search-jobcodes.js';
+import { getProjectNotes } from './tools/get-project-notes.js';
+import { getProjectDetails } from './tools/get-project-details.js';
+import { z } from 'zod';
+
+// Zod schemas for new tools
+const SearchJobcodesArgsSchema = z.object({
+  search: z.string().optional(),
+  active: z.enum(['yes', 'no', 'both']).optional(),
+});
+
+const GetProjectNotesArgsSchema = z.object({
+  projectId: z.number().optional(),
+  jobcodeId: z.number().optional(),
+});
+
+const GetProjectDetailsArgsSchema = z.object({
+  jobcodeId: z.number().optional(),
+  projectName: z.string().optional(),
+});
 
 // Load environment variables
 dotenv.config();
@@ -192,6 +212,64 @@ const tools: Tool[] = [
       required: ['sageReport', 'format'],
     },
   },
+  {
+    name: 'search_jobcodes',
+    description:
+      'Search for jobcodes (projects/tasks) in TSheets by name, ID, or short code. Returns a list of matching jobcodes. Use this to find the correct jobcode ID before getting detailed reports.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        search: {
+          type: 'string',
+          description: 'Search term: partial name, numeric ID, or short code (e.g., "Fort Hamilton", "25802")',
+        },
+        active: {
+          type: 'string',
+          enum: ['yes', 'no', 'both'],
+          description: 'Filter by active status. Default: both',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_project_notes',
+    description:
+      'Get all notes and file attachments for a TSheets project. Notes include content, author, timestamps, and attached files. Requires project ID or jobcode ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: {
+          type: 'number',
+          description: 'TSheets project ID (not the jobcode ID)',
+        },
+        jobcodeId: {
+          type: 'number',
+          description: 'Alternative: jobcode ID - will find the associated project automatically',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_project_details',
+    description:
+      'Get comprehensive project information including jobcode details, project metadata, and all notes with file counts. Search by jobcode ID or project name.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        jobcodeId: {
+          type: 'number',
+          description: 'Jobcode ID (e.g., 25802)',
+        },
+        projectName: {
+          type: 'string',
+          description: 'Alternative: Project/jobcode name to search for',
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 // Create MCP server
@@ -220,7 +298,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     console.error(`[MCP Server] Arguments: ${JSON.stringify(args || {})}`);
 
     // Check if services are initialized for tools that need them
-    if (name === 'get_project_report' || name === 'get_project_report_summary') {
+    const toolsNeedingTSheets = [
+      'get_project_report',
+      'get_project_report_summary',
+      'search_jobcodes',
+      'get_project_notes',
+      'get_project_details',
+    ];
+    if (toolsNeedingTSheets.includes(name)) {
       if (!tsheetsClient || !tsheetsApi || !tokenManager) {
         throw new Error(
           'TSheets services not initialized. Please check your environment variables:\n' +
@@ -292,6 +377,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'export_document': {
         const validated = ExportDocumentArgsSchema.parse(args || {});
         const result = await exportDocument(validated);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'search_jobcodes': {
+        const validated = SearchJobcodesArgsSchema.parse(args || {});
+        await tsheetsClient!.initialize();
+        const result = await searchJobcodes(tsheetsApi!, validated);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_project_notes': {
+        const validated = GetProjectNotesArgsSchema.parse(args || {});
+        await tsheetsClient!.initialize();
+        const result = await getProjectNotes(tsheetsApi!, validated);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_project_details': {
+        const validated = GetProjectDetailsArgsSchema.parse(args || {});
+        await tsheetsClient!.initialize();
+        const result = await getProjectDetails(tsheetsApi!, validated);
         return {
           content: [
             {

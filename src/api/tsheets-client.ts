@@ -210,4 +210,102 @@ export class TSheetsClient {
 
     return response.json();
   }
+
+  /**
+   * Get projects with filters
+   * Projects are associated with jobcodes and contain additional tracking info
+   * @param params - Query parameters
+   */
+  async getProjects(params: {
+    ids?: number[];
+    jobcode_ids?: number[];
+    active?: 'yes' | 'no' | 'both';
+    status?: 'in_progress' | 'complete' | 'cancelled';
+    modified_before?: string;
+    modified_since?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<any> {
+    const queryParams: Record<string, string> = {};
+
+    if (params.ids) queryParams.ids = params.ids.join(',');
+    if (params.jobcode_ids) queryParams.jobcode_ids = params.jobcode_ids.join(',');
+    if (params.active) queryParams.active = params.active;
+    if (params.status) queryParams.status = params.status;
+    if (params.modified_before) queryParams.modified_before = params.modified_before;
+    if (params.modified_since) queryParams.modified_since = params.modified_since;
+    if (params.page) queryParams.page = params.page.toString();
+    if (params.limit) queryParams.limit = params.limit.toString();
+
+    return this.get('/projects', queryParams);
+  }
+
+  /**
+   * Get project notes
+   * Retrieves notes associated with a project
+   * @param params - Query parameters (project_id is required)
+   */
+  async getProjectNotes(params: {
+    project_id: number;
+    ids?: number[];
+    user_ids?: number[];
+    active?: 'yes' | 'no' | 'both';
+    modified_before?: string;
+    modified_since?: string;
+    supplemental_data?: 'yes' | 'no';
+    page?: number;
+    limit?: number;
+  }): Promise<any> {
+    const queryParams: Record<string, string> = {
+      project_id: params.project_id.toString(),
+    };
+
+    if (params.ids) queryParams.ids = params.ids.join(',');
+    if (params.user_ids) queryParams.user_ids = params.user_ids.join(',');
+    if (params.active) queryParams.active = params.active;
+    if (params.modified_before) queryParams.modified_before = params.modified_before;
+    if (params.modified_since) queryParams.modified_since = params.modified_since;
+    if (params.supplemental_data) queryParams.supplemental_data = params.supplemental_data;
+    if (params.page) queryParams.page = params.page.toString();
+    if (params.limit) queryParams.limit = params.limit.toString();
+
+    return this.get('/project_notes', queryParams);
+  }
+
+  /**
+   * Search jobcodes by name or short_code
+   * @param search - Search string to match against jobcode names
+   * @param params - Additional filter parameters
+   */
+  async searchJobcodes(params: {
+    name?: string;
+    ids?: number[];
+    parent_ids?: number[];
+    active?: 'yes' | 'no' | 'both';
+    type?: 'regular' | 'pto' | 'unpaid_break' | 'paid_break' | 'all';
+    has_children?: 'yes' | 'no' | 'both';
+    page?: number;
+    limit?: number;
+  } = {}): Promise<any> {
+    const queryParams: Record<string, string> = {};
+
+    if (params.name) queryParams.name = params.name;
+    if (params.ids) queryParams.ids = params.ids.join(',');
+    if (params.parent_ids) queryParams.parent_ids = params.parent_ids.join(',');
+    if (params.active) queryParams.active = params.active;
+    if (params.type) queryParams.type = params.type;
+    if (params.has_children) queryParams.has_children = params.has_children;
+    if (params.page) queryParams.page = params.page.toString();
+    if (params.limit) queryParams.limit = params.limit.toString();
+
+    return this.get('/jobcodes', queryParams);
+  }
+
+  /**
+   * Get file download URL and metadata
+   * @param fileId - The file ID to get info for
+   */
+  async getFileById(fileId: number): Promise<any> {
+    return this.get('/files', { ids: fileId.toString() });
+  }
 }
