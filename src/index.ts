@@ -84,7 +84,7 @@ try {
         clientId: process.env.TSHEETS_CLIENT_ID,
         clientSecret: process.env.TSHEETS_CLIENT_SECRET,
         redirectUri: process.env.TSHEETS_REDIRECT_URI,
-      });
+});
       tsheetsApi = new TSheetsApi(tsheetsClient);
       console.error('[MCP Server] TSheets client initialized successfully');
     }

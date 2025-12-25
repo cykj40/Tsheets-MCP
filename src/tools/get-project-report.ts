@@ -82,7 +82,16 @@ export async function getProjectReport(
       ? `${timesheet.user.first_name} ${timesheet.user.last_name}`.trim()
       : 'Unknown';
 
-    const jobName = timesheet.jobcode?.name || 'Unknown';
+    // Include project number (short_code) in jobName if available
+    let jobName = 'Unknown';
+    if (timesheet.jobcode) {
+      if (timesheet.jobcode.short_code) {
+        jobName = `${timesheet.jobcode.short_code} - ${timesheet.jobcode.name}`;
+      } else {
+        jobName = timesheet.jobcode.name;
+      }
+    }
+
     const durationHours = timesheet.duration / 3600; // Convert seconds to hours
     const hours = Math.floor(durationHours);
     const minutes = Math.round((durationHours - hours) * 60);

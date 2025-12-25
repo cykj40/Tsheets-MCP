@@ -133,6 +133,71 @@ async function main() {
 
     const timesheets = await tsheetsApi.getTimesheetsForDateRange(startDate, endDate);
 
+    const allJobcodes = await tsheetsApi.getAllJobcodes();
+    const jobcodeMap = new Map(allJobcodes.map(jc => [jc.id, jc]));
+
+    console.log(`\n📊 Debug: Loaded ${allJobcodes.length} jobcodes into map`);
+    console.log(`📊 Debug: Timesheets count: ${timesheets.length}`);
+    if (timesheets.length > 0) {
+      console.log(`📊 Debug: First timesheet jobcode_id: ${timesheets[0].jobcode_id}`);
+      console.log(`📊 Debug: First timesheet has .jobcode: ${!!timesheets[0].jobcode}`);
+      if (timesheets[0].jobcode) {
+        console.log(`📊 Debug: First timesheet jobcode name: ${timesheets[0].jobcode.name}`);
+      }
+    }
+
+    const missingParentIds = new Set<number>();
+    timesheets.forEach(ts => {
+      if (ts.jobcode?.parent_id && !jobcodeMap.has(ts.jobcode.parent_id)) {
+        missingParentIds.add(ts.jobcode.parent_id);
+      }
+    });
+
+    if (missingParentIds.size > 0) {
+      console.log(`📊 Debug: Found ${missingParentIds.size} missing parent jobcode(s), fetching by ID...`);
+      const missingIds = Array.from(missingParentIds);
+
+      const missingJobcodesResponse = await tsheetsClient.getJobcodes({
+        ids: missingIds,
+        active: 'both'
+      });
+
+      if (missingJobcodesResponse?.results?.jobcodes) {
+        const fetchedJobcodes = Object.values(missingJobcodesResponse.results.jobcodes) as any[];
+        console.log(`📊 Debug: Fetched ${fetchedJobcodes.length} parent jobcode(s)`);
+        fetchedJobcodes.forEach(jc => jobcodeMap.set(jc.id, jc));
+      }
+    }
+
+    const buildJobPath = (jobcode: any): string => {
+      if (!jobcode) {
+        return 'Unknown';
+      }
+
+      const parts: string[] = [];
+      let current: typeof jobcode | undefined = jobcode;
+
+      while (current) {
+        const displayName = current.short_code
+          ? `${current.name} ${current.short_code}`
+          : current.name;
+        parts.unshift(displayName);
+
+        if (current.parent_id) {
+          const parentId = current.parent_id;
+          current = jobcodeMap.get(parentId);
+          if (!current) {
+            console.log(`⚠️  Warning: No parent jobcode found for ID: ${parentId}`);
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+
+      return parts.join(' › ');
+    };
+
     if (timesheets.length === 0) {
       console.log('No timesheets found in this date range.');
       return;
@@ -149,27 +214,36 @@ async function main() {
     });
 
     byEmployee.forEach((entries, employeeName) => {
+      const entriesWithNotes = entries.filter(ts => ts.notes && ts.notes.trim().length > 0);
+
+      if (entriesWithNotes.length === 0) {
+        return;
+      }
+
       console.log(`\n👤 ${employeeName}`);
       console.log('-'.repeat(40));
 
-      entries.forEach(ts => {
+      entriesWithNotes.forEach(ts => {
         const hours = (ts.duration / 3600).toFixed(2);
-        const jobName = ts.jobcode?.name || 'Unknown';
-        const notes = ts.notes || '(no notes)';
-        const hasFiles = (ts.files && ts.files.length > 0) ? ` 📎 ${ts.files.length} file(s)` : '';
+        const timeIn = ts.start ? new Date(ts.start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+        const timeOut = ts.end ? new Date(ts.end).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
 
-        console.log(`📅 ${ts.date} | ⏱️  ${hours}h | ${jobName}`);
-        console.log(`   Notes: ${notes}${hasFiles}`);
+        const jobDisplay = ts.jobcode ? buildJobPath(ts.jobcode) : 'Unknown';
 
-        if (ts.files && ts.files.length > 0) {
-          ts.files.forEach(file => {
-            console.log(`   📷 ${file.file_name} (${(file.file_size / 1024).toFixed(1)} KB)`);
-          });
-        }
+        const attachment = (ts.files && ts.files.length > 0)
+          ? ts.files.map(f => f.file_name).join(', ')
+          : 'None';
+
+        console.log(`📅 ${ts.date}`);
+        console.log(`   Time: ${timeIn} - ${timeOut}`);
+        console.log(`   Duration: ${hours}h`);
+        console.log(`   Job: ${jobDisplay}`);
+        console.log(`   Attachment: ${attachment}`);
+        console.log(`   Notes: ${ts.notes}`);
         console.log();
       });
 
-      const totalHours = entries.reduce((sum, ts) => sum + ts.duration / 3600, 0);
+      const totalHours = entriesWithNotes.reduce((sum, ts) => sum + ts.duration / 3600, 0);
       console.log(`Total: ${totalHours.toFixed(2)} hours`);
     });
 

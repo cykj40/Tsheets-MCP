@@ -98,13 +98,29 @@ export class TSheetsApi {
       return [];
     }
 
-    // Step 3: Get supplemental data (users)
-    const userIds = [...new Set(timesheets.map(ts => ts.user_id))];
-    const usersResponse = await this.client.getUsers({ ids: userIds });
-    const usersValidated = TSheetsResponseSchema.parse(usersResponse);
-    const users = usersValidated.results.users || {};
+    // Step 3: Merge jobcodes from supplemental_data (if provided by API)
+    // The timesheets API automatically includes jobcode data in supplemental_data
+    if (tsValidated.supplemental_data?.jobcodes) {
+      const supplementalJobcodes = tsValidated.supplemental_data.jobcodes;
+      // Merge supplemental jobcodes with allJobcodes (supplemental takes precedence)
+      Object.assign(allJobcodes, supplementalJobcodes);
+      console.error(`[TSheetsApi] Merged ${Object.keys(supplementalJobcodes).length} jobcodes from supplemental data`);
+    }
 
-    // Step 4: Get files for timesheets that have attachments
+    // Step 4: Get user data from supplemental_data or fetch separately
+    let users: Record<string, User> = {};
+    if (tsValidated.supplemental_data?.users) {
+      users = tsValidated.supplemental_data.users;
+      console.error(`[TSheetsApi] Using ${Object.keys(users).length} users from supplemental data`);
+    } else {
+      // Fallback: fetch users separately
+      const userIds = [...new Set(timesheets.map(ts => ts.user_id))];
+      const usersResponse = await this.client.getUsers({ ids: userIds });
+      const usersValidated = TSheetsResponseSchema.parse(usersResponse);
+      users = usersValidated.results.users || {};
+    }
+
+    // Step 5: Get files for timesheets that have attachments
     const timesheetsWithFiles = timesheets.filter(ts =>
       ts.attached_files && ts.attached_files.length > 0
     );
@@ -129,7 +145,7 @@ export class TSheetsApi {
       }
     }
 
-    // Step 5: Combine all data
+    // Step 6: Combine all data
     const enrichedTimesheets: TimesheetWithDetails[] = timesheets.map(ts => ({
       ...ts,
       user: users[ts.user_id.toString()],
