@@ -55,20 +55,30 @@ export const JobcodeSchema = z.object({
 
 export type Jobcode = z.infer<typeof JobcodeSchema>;
 
-// File attachment
+// File attachment - made flexible to handle varying API responses
 export const FileSchema = z.object({
   id: z.number(),
   uploaded_by_user_id: z.number(),
   file_name: z.string(),
-  file_size: z.number(), // bytes
-  file_url: z.string(), // download URL
+  file_size: z.number().optional(), // bytes - not always present
+  size: z.number().optional(), // alternative field name in some responses
+  file_url: z.string().optional(), // download URL - not always present immediately
   active: z.boolean(),
   created: z.string().optional(), // TSheets sometimes omits this
-  linked_objects: z.array(z.object({
-    id: z.number(),
-    type: z.string(), // e.g., "timesheet"
-  })).optional(),
-});
+  last_modified: z.string().optional(),
+  linked_objects: z.union([
+    z.array(z.object({
+      id: z.number(),
+      type: z.string(), // e.g., "timesheet"
+    })),
+    z.record(z.string(), z.array(z.number())), // alternative format: { timesheets: [123], projects: [456] }
+  ]).optional(),
+  meta_data: z.record(z.string(), z.string()).optional(), // image metadata like rotation
+}).transform(val => ({
+  ...val,
+  // Normalize file_size - use file_size if present, otherwise use size
+  file_size: val.file_size ?? val.size ?? 0,
+}));
 
 export type File = z.infer<typeof FileSchema>;
 

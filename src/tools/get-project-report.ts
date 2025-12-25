@@ -78,10 +78,10 @@ export async function getProjectReport(
 
   // Transform to report format
   const transformedActivities = timesheets.map(timesheet => {
-    const employeeName = timesheet.user 
+    const employeeName = timesheet.user
       ? `${timesheet.user.first_name} ${timesheet.user.last_name}`.trim()
       : 'Unknown';
-    
+
     const jobName = timesheet.jobcode?.name || 'Unknown';
     const durationHours = timesheet.duration / 3600; // Convert seconds to hours
     const hours = Math.floor(durationHours);
@@ -91,8 +91,8 @@ export async function getProjectReport(
     const attachments = (timesheet.files || []).map(file => ({
       id: file.id.toString(),
       fileName: file.file_name,
-      fileUrl: file.file_url,
-      fileSize: file.file_size,
+      fileUrl: file.file_url || '', // URL might not be available immediately
+      fileSize: file.file_size ?? 0,
     }));
 
     return {

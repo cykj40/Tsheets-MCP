@@ -3,13 +3,13 @@
  */
 
 import { TSheetsClient } from './tsheets-client.js';
-import { 
-  TSheetsResponseSchema, 
-  Timesheet, 
-  User, 
-  Jobcode, 
-  File, 
-  ProjectReportResponseSchema, 
+import {
+  TSheetsResponseSchema,
+  Timesheet,
+  User,
+  Jobcode,
+  File,
+  ProjectReportResponseSchema,
   ProjectReportResponse,
   Project,
   ProjectSchema,
@@ -122,7 +122,9 @@ export class TSheetsApi {
           files = filesValidated.results.files || {};
         }
       } catch (error) {
-        console.error('[TSheetsApi] Error fetching files:', error);
+        // Safely log error - Zod errors can't be directly serialized
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error('[TSheetsApi] Error fetching files:', errorMsg);
         // Continue without files
       }
     }
@@ -204,7 +206,7 @@ export class TSheetsApi {
    */
   async searchJobcodes(search?: string, active: 'yes' | 'no' | 'both' = 'both'): Promise<Jobcode[]> {
     console.error(`[TSheetsApi] Searching jobcodes${search ? ` for: ${search}` : ''}...`);
-    
+
     // If search is a numeric ID, try to get it directly
     const numericId = search ? parseInt(search, 10) : NaN;
     if (!isNaN(numericId)) {
@@ -248,17 +250,17 @@ export class TSheetsApi {
    */
   async getProjectByJobcodeId(jobcodeId: number): Promise<Project | null> {
     console.error(`[TSheetsApi] Getting project for jobcode ID: ${jobcodeId}`);
-    
+
     try {
       const response = await this.client.getProjects({ jobcode_ids: [jobcodeId] });
       const validated = ProjectsResponseSchema.parse(response);
       const projects = Object.values(validated.results.projects || {});
-      
+
       if (projects.length > 0) {
         console.error(`[TSheetsApi] Found project: ${projects[0].name}`);
         return projects[0];
       }
-      
+
       console.error(`[TSheetsApi] No project found for jobcode ID: ${jobcodeId}`);
       return null;
     } catch (error) {
@@ -272,7 +274,7 @@ export class TSheetsApi {
    */
   async getAllProjects(active: 'yes' | 'no' | 'both' = 'both', status?: 'in_progress' | 'complete' | 'cancelled'): Promise<Project[]> {
     console.error(`[TSheetsApi] Getting all projects...`);
-    
+
     try {
       const response = await this.client.getProjects({ active, status });
       const validated = ProjectsResponseSchema.parse(response);
@@ -295,20 +297,20 @@ export class TSheetsApi {
     users: Record<string, User>;
   }> {
     console.error(`[TSheetsApi] Getting notes for project ID: ${projectId}`);
-    
+
     try {
       const response = await this.client.getProjectNotes({
         project_id: projectId,
         supplemental_data: 'yes',
       });
-      
+
       const validated = ProjectNotesResponseSchema.parse(response);
       const notes = Object.values(validated.results.project_notes || {});
       const files = validated.supplemental_data?.files || {};
       const users = validated.supplemental_data?.users || {};
-      
+
       console.error(`[TSheetsApi] Found ${notes.length} note(s) with ${Object.keys(files).length} file(s)`);
-      
+
       return {
         notes,
         files: files as Record<string, ProjectFile>,
@@ -325,11 +327,11 @@ export class TSheetsApi {
    */
   async searchProjects(search?: string): Promise<Project[]> {
     const projects = await this.getAllProjects();
-    
+
     if (!search) {
       return projects;
     }
-    
+
     const searchLower = search.toLowerCase();
     return projects.filter(p =>
       p.name.toLowerCase().includes(searchLower) ||
@@ -348,26 +350,26 @@ export class TSheetsApi {
     noteAuthors: Record<string, User>;
   }> {
     console.error(`[TSheetsApi] Getting comprehensive project details for jobcode: ${jobcodeId}`);
-    
+
     // Get jobcode info
     const jobcodes = await this.searchJobcodes(jobcodeId.toString());
     const jobcode = jobcodes.length > 0 ? jobcodes[0] : null;
-    
+
     // Get project if it exists
     const project = await this.getProjectByJobcodeId(jobcodeId);
-    
+
     // Get notes if project exists
     let notes: ProjectNote[] = [];
     let files: Record<string, ProjectFile> = {};
     let noteAuthors: Record<string, User> = {};
-    
+
     if (project) {
       const notesData = await this.getProjectNotes(project.id);
       notes = notesData.notes;
       files = notesData.files;
       noteAuthors = notesData.users;
     }
-    
+
     return {
       jobcode,
       project,
