@@ -65,6 +65,13 @@ export class TSheetsApi {
         const jobcode = allJobcodes[numericId.toString()];
         jobcodeFilter = [numericId];
         console.error(`[TSheetsApi] Detected numeric ID: ${numericId} (${jobcode.name})`);
+        
+        // Include all children of this jobcode
+        const children = Object.values(allJobcodes).filter(jc => jc.parent_id === numericId);
+        if (children.length > 0) {
+          jobcodeFilter.push(...children.map(jc => jc.id));
+          console.error(`[TSheetsApi] Including ${children.length} child jobcode(s)`);
+        }
       } else {
         // Find matching jobcode(s) by name (case-insensitive partial match)
         const matchingJobcodes = Object.values(allJobcodes).filter(jc =>
@@ -79,6 +86,16 @@ export class TSheetsApi {
 
         jobcodeFilter = matchingJobcodes.map(jc => jc.id);
         console.error(`[TSheetsApi] Found ${jobcodeFilter.length} matching jobcode(s) by name`);
+        
+        // Include all children of matched parent jobcodes
+        const parentIds = matchingJobcodes.map(jc => jc.id);
+        const children = Object.values(allJobcodes).filter(jc => 
+          jc.parent_id && parentIds.includes(jc.parent_id)
+        );
+        if (children.length > 0) {
+          jobcodeFilter.push(...children.map(jc => jc.id));
+          console.error(`[TSheetsApi] Including ${children.length} child jobcode(s) of matched parents`);
+        }
       }
     }
 

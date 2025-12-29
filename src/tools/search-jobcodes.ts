@@ -20,6 +20,7 @@ export interface SearchJobcodesResult {
         active: boolean;
         parent_id?: number;
         has_children: boolean;
+        full_path?: string;
     }>;
     total_count: number;
     search_term?: string;
@@ -40,6 +41,31 @@ export async function searchJobcodes(
             input.active || 'both'
         );
 
+        // Get all jobcodes to build hierarchy paths
+        const allJobcodes = await tsheetsApi.getAllJobcodes();
+        const jobcodeMap = new Map(allJobcodes.map(jc => [jc.id, jc]));
+
+        // Build full hierarchy path for each jobcode
+        const buildJobPath = (jobcode: any): string => {
+            const parts: string[] = [];
+            let current = jobcode;
+
+            while (current) {
+                const displayName = current.short_code
+                    ? `${current.name} ${current.short_code}`
+                    : current.name;
+                parts.unshift(displayName);
+
+                if (current.parent_id) {
+                    current = jobcodeMap.get(current.parent_id);
+                } else {
+                    break;
+                }
+            }
+
+            return parts.join(' › ');
+        };
+
         const results = jobcodes.map(jc => ({
             id: jc.id,
             name: jc.name,
@@ -48,6 +74,7 @@ export async function searchJobcodes(
             active: jc.active,
             parent_id: jc.parent_id,
             has_children: jc.has_children,
+            full_path: buildJobPath(jc),
         }));
 
         // Sort by name
