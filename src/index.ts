@@ -125,7 +125,7 @@ const tools: Tool[] = [
   {
     name: 'get_project_report',
     description:
-      'Get DETAILED timesheet data from TSheets including individual entries, employee hours, notes, and photo attachments. Slower but includes all details. Use get_project_report_summary for faster aggregated data.',
+      'Get DETAILED timesheet data from TSheets including individual entries, employee hours, notes, and photo attachments. Slower but includes all details. Use get_project_report_summary for faster aggregated data. IMPORTANT: When user mentions a project name, use search_jobcodes FIRST to find the jobcode ID, then pass that ID to this tool for accurate results.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -143,11 +143,11 @@ const tools: Tool[] = [
         },
         projectName: {
           type: 'string',
-          description: 'Project/jobcode name or numeric ID (e.g., "25802" or "Fort Hamilton Parkway"). Auto-detects if numeric. Partial match supported for names.',
+          description: 'Project/jobcode name or numeric ID (e.g., "25802" or "Fort Hamilton"). Searches for partial matches. For best results, use jobcodeId instead after searching with search_jobcodes.',
         },
         jobcodeId: {
           type: 'number',
-          description: 'Alternative: Direct numeric jobcode ID for exact matching (e.g., 25802)',
+          description: 'PREFERRED: Direct numeric jobcode ID for exact matching (e.g., 25802). Use search_jobcodes first to find this ID.',
         },
       },
       required: [],
@@ -215,13 +215,13 @@ const tools: Tool[] = [
   {
     name: 'search_jobcodes',
     description:
-      'Search for jobcodes (projects/tasks) in TSheets by name, ID, or short code. Returns a list of matching jobcodes. Use this to find the correct jobcode ID before getting detailed reports.',
+      'Search for jobcodes (projects/tasks) in TSheets by name, ID, or short code. Returns a list of matching jobcodes with their hierarchy. ALWAYS use this tool FIRST when the user mentions a project name to find the correct jobcode ID, then use that ID with get_project_report.',
     inputSchema: {
       type: 'object',
       properties: {
         search: {
           type: 'string',
-          description: 'Search term: partial name, numeric ID, or short code (e.g., "Fort Hamilton", "25802")',
+          description: 'Search term: partial name, numeric ID, or short code (e.g., "MMC BCC", "Mammography", "25839", "1030"). Searches across name and short_code fields.',
         },
         active: {
           type: 'string',

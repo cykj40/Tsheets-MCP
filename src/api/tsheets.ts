@@ -36,12 +36,12 @@ export class TSheetsApi {
   private getAllDescendants(parentId: number, allJobcodes: Record<string, Jobcode>): number[] {
     const directChildren = Object.values(allJobcodes).filter(jc => jc.parent_id === parentId);
     let descendants = directChildren.map(jc => jc.id);
-    
+
     // Recursively get grandchildren
     for (const child of directChildren) {
       descendants.push(...this.getAllDescendants(child.id, allJobcodes));
     }
-    
+
     return descendants;
   }
 
@@ -70,11 +70,11 @@ export class TSheetsApi {
         console.error(`[TSheetsApi] No jobcode found with ID: ${jobcodeId}`);
         return [];
       }
-      
+
       // CRITICAL FIX: Include the parent AND all its descendants (recursive)
       jobcodeFilter = [jobcodeId];
       console.error(`[TSheetsApi] Using jobcode ID: ${jobcodeId} (${jobcode.name})`);
-      
+
       // Find all descendant jobcodes (timesheets are often logged to children, not parents)
       const descendants = this.getAllDescendants(jobcodeId, allJobcodes);
       if (descendants.length > 0) {
@@ -93,7 +93,7 @@ export class TSheetsApi {
         const jobcode = allJobcodes[numericId.toString()];
         jobcodeFilter = [numericId];
         console.error(`[TSheetsApi] Detected numeric ID: ${numericId} (${jobcode.name})`);
-        
+
         // Auto-include descendants
         const descendants = this.getAllDescendants(numericId, allJobcodes);
         if (descendants.length > 0) {
@@ -114,14 +114,14 @@ export class TSheetsApi {
 
         jobcodeFilter = matchingJobcodes.map(jc => jc.id);
         console.error(`[TSheetsApi] Found ${jobcodeFilter.length} matching jobcode(s) by name`);
-        
+
         // Include all descendants of matched parent jobcodes
         const parentIds = matchingJobcodes.map(jc => jc.id);
         const allDescendants: number[] = [];
         for (const parentId of parentIds) {
           allDescendants.push(...this.getAllDescendants(parentId, allJobcodes));
         }
-        
+
         if (allDescendants.length > 0) {
           jobcodeFilter.push(...allDescendants);
           const childJobcodes = allDescendants.map(id => {
@@ -261,7 +261,7 @@ export class TSheetsApi {
       const jobcodesResponse = await this.client.getJobcodes({ active: 'both' });
       const validated = TSheetsResponseSchema.parse(jobcodesResponse);
       const allJobcodes = validated.results.jobcodes || {};
-      
+
       // Check if the jobcode exists
       const jobcode = allJobcodes[jobcodeId.toString()];
       if (!jobcode) {
@@ -270,16 +270,19 @@ export class TSheetsApi {
         return {
           results: {
             project_report: {
-              totals: { total: 0 },
-              by_jobcode: {},
-              by_user: {},
+              start_date: startDate,
+              end_date: endDate,
+              totals: {
+                users: {},
+                jobcodes: {},
+                groups: {},
+              },
             },
           },
           supplemental_data: {},
-          more: false,
         };
       }
-      
+
       // Include parent and all descendants
       const jobcodeFilter = [jobcodeId];
       const descendants = this.getAllDescendants(jobcodeId, allJobcodes);
@@ -287,7 +290,7 @@ export class TSheetsApi {
         jobcodeFilter.push(...descendants);
         console.error(`[TSheetsApi] Auto-including ${descendants.length} descendant jobcode(s) in report filter`);
       }
-      
+
       params.jobcode_ids = jobcodeFilter;
       console.error(`[TSheetsApi] Filtering by ${jobcodeFilter.length} jobcode ID(s): ${jobcodeFilter.join(', ')}`);
     }
