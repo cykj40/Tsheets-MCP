@@ -10,7 +10,7 @@ Quick reference for common TSheets queries in Claude Desktop.
 ```
 Get last week's timesheets. Group by job (full hierarchy), then by date. 
 Only show entries with notes. Format: Job header, then dates, then 
-employee/time/hours/notes for each entry.
+employee/time/hours/notes for each entry. exclude entries with .., ..., ${name} has the notes 
 ```
 
 ### This Week's Timesheets
