@@ -39,18 +39,9 @@ coverage/
 .cursor
 .cursor/
 
-# Private setup guides (may contain user-specific paths)
-SETUP_GUIDE.md
-CLAUDE_COMMANDS.md
-
-QUICK_REFERENCE.md
-
-FINAL_IMPLEMENTATION.md
-FIXED_SEARCH_SUMMARY.md
-SEARCH_IMPROVEMENTS.md
-SEARCH_FIX_SUMMARY.md
-SEARCH_FIX_DETAILS.md
-SEARCH_FIX_IMPROVEMENTS.md
+# Ignore all markdown files except README
+*.md
+!README.md
 
 
 
