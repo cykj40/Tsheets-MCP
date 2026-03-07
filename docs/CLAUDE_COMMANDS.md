@@ -8,7 +8,7 @@ Quick reference for common TSheets queries in Claude Desktop.
 
 ### Get Last Week's Timesheets (Grouped by Job & Date)
 ```
-Get last week's timesheets. Group by job (full hierarchy), then by date. 
+Get 02/02/2026 - 02/08/2026 timesheets. Group by job (full hierarchy), then by date. 
 Only show entries with notes. Format: Job header, then dates, then 
 employee/time/hours/notes for each entry. exclude entries with .., ..., ${name} has the notes 
 ```

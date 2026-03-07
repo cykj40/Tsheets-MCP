@@ -46,7 +46,7 @@ export async function getProjectReport(
 
   const projectName = args.projectName;
   const jobcodeId = args.jobcodeId;
-  const resolvedProjectName = projectName || (jobcodeId ? `Job #${jobcodeId}` : 'All Projects');
+  let resolvedProjectName = projectName || (jobcodeId ? `Job #${jobcodeId}` : 'All Projects');
 
   console.error(`[GetProjectReport] Starting report generation for ${startDate} to ${endDate}${projectName ? ` (Project: ${projectName})` : jobcodeId ? ` (Jobcode ID: ${jobcodeId})` : ' (All Projects)'}`);
 
@@ -80,6 +80,10 @@ export async function getProjectReport(
   // Fetch all jobcodes to build hierarchy
   const allJobcodes = await tsheetsApi.getAllJobcodes();
   const jobcodeMap = new Map<number, Jobcode>(allJobcodes.map(jc => [jc.id, jc]));
+
+  if (jobcodeId && jobcodeMap.has(jobcodeId)) {
+    resolvedProjectName = jobcodeMap.get(jobcodeId)!.name;
+  }
 
   // Find missing parent jobcodes referenced by timesheets
   const missingParentIds = new Set<number>();
@@ -122,7 +126,7 @@ export async function getProjectReport(
       }
     }
 
-    return parts.join(' › ');
+    return parts.join(' \u203A ');
   };
 
   // Transform to report format

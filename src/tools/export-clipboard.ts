@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SageReport, ExportFormatSchema, ExportFormat } from '../types/sage.js';
+import { SageReport, ExportFormatSchema } from '../types/sage.js';
 import { getDateRangeString } from '../utils/date.js';
 
 export const ExportClipboardArgsSchema = z.object({
@@ -9,19 +9,92 @@ export const ExportClipboardArgsSchema = z.object({
 
 export type ExportClipboardArgs = z.infer<typeof ExportClipboardArgsSchema>;
 
-export function exportClipboard(args: ExportClipboardArgs): string {
-  const { sageReport, format } = args;
+type PartialSageReport = Partial<SageReport> & {
+  entries?: SageReport['entries'];
+  employeeSummaries?: SageReport['employeeSummaries'];
+  dailySummaries?: SageReport['dailySummaries'];
+};
 
-  switch (format) {
+export function exportClipboard(args: ExportClipboardArgs): string {
+  const report = normalizeReport(args.sageReport as PartialSageReport);
+
+  switch (args.format) {
     case 'text':
-      return formatAsText(sageReport);
+      return formatAsText(report);
     case 'markdown':
-      return formatAsMarkdown(sageReport);
+      return formatAsMarkdown(report);
     case 'csv':
-      return formatAsCSV(sageReport);
+      return formatAsCSV(report);
     default:
-      throw new Error(`Unsupported format: ${format}`);
+      throw new Error(`Unsupported format: ${args.format}`);
   }
+}
+
+function normalizeReport(report: PartialSageReport): SageReport {
+  const entries = Array.isArray(report.entries) ? [...report.entries] : [];
+
+  const dailySummaries = Array.isArray(report.dailySummaries)
+    ? report.dailySummaries
+    : buildDailySummaries(entries);
+
+  const employeeSummaries = Array.isArray(report.employeeSummaries)
+    ? report.employeeSummaries
+    : buildEmployeeSummaries(entries);
+
+  const totalHours = typeof report.totalHours === 'number'
+    ? report.totalHours
+    : parseFloat(entries.reduce((sum, entry) => sum + entry.hours, 0).toFixed(2));
+
+  const totalEntries = typeof report.totalEntries === 'number'
+    ? report.totalEntries
+    : entries.length;
+
+  return {
+    jobName: report.jobName || 'Unknown Job',
+    startDate: report.startDate || '',
+    endDate: report.endDate || '',
+    totalHours,
+    totalEntries,
+    entries,
+    employeeSummaries,
+    dailySummaries,
+  };
+}
+
+function buildDailySummaries(entries: SageReport['entries']): SageReport['dailySummaries'] {
+  const dailyMap = new Map<string, SageReport['entries']>();
+
+  for (const entry of entries) {
+    const existing = dailyMap.get(entry.date) || [];
+    existing.push(entry);
+    dailyMap.set(entry.date, existing);
+  }
+
+  return Array.from(dailyMap.entries())
+    .map(([date, dailyEntries]) => ({
+      date,
+      entries: dailyEntries,
+      totalHours: parseFloat(dailyEntries.reduce((sum, entry) => sum + entry.hours, 0).toFixed(2)),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function buildEmployeeSummaries(entries: SageReport['entries']): SageReport['employeeSummaries'] {
+  const employeeMap = new Map<string, SageReport['entries']>();
+
+  for (const entry of entries) {
+    const existing = employeeMap.get(entry.employeeName) || [];
+    existing.push(entry);
+    employeeMap.set(entry.employeeName, existing);
+  }
+
+  return Array.from(employeeMap.entries())
+    .map(([name, employeeEntries]) => ({
+      name,
+      totalHours: parseFloat(employeeEntries.reduce((sum, entry) => sum + entry.hours, 0).toFixed(2)),
+      entries: employeeEntries,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function formatAsText(report: SageReport): string {
