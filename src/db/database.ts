@@ -3,8 +3,13 @@ import { mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { Jobcode } from '../types/tsheets.js';
 
-const DATA_DIR = resolve(process.cwd(), 'data');
-const DATABASE_PATH = resolve(DATA_DIR, 'tsheets-cache.db');
+const PROJECT_DIR = new URL('../../', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+const DATA_DIR = process.env.TSHEETS_DB_PATH
+  ? resolve(process.env.TSHEETS_DB_PATH, '..')
+  : resolve(PROJECT_DIR, 'data');
+const DATABASE_PATH = process.env.TSHEETS_DB_PATH
+  ? resolve(process.env.TSHEETS_DB_PATH)
+  : resolve(DATA_DIR, 'tsheets-cache.db');
 
 let database: Database.Database | null = null;
 
