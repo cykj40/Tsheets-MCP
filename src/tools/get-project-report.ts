@@ -155,11 +155,13 @@ export async function getProjectReport(
       date: timesheet.date,
       employeeName,
       jobName,
+      jobcodeId: timesheet.jobcode_id,
       hours,
       minutes,
       description: timesheet.notes || '',
       billableStatus: 'NotBillable', // TSheets doesn't have this concept by default
       hourlyRate: 0, // TSheets stores this differently
+      createdAt: timesheet.created,
       attachments,
     };
   });

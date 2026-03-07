@@ -1,10 +1,12 @@
 /**
  * Get Project Details Tool
- * Retrieves comprehensive project information including notes, files, and timesheet data
+ * Retrieves comprehensive project information including notes, files, and cached timesheet data
  */
 
 import { TSheetsApi } from '../api/tsheets.js';
-import { getProjectReport } from './get-project-report.js';
+import { CachedTimeEntry } from '../db/database.js';
+import { getEntriesByJobcode } from '../db/query.js';
+import { syncProjectHistory } from '../db/sync.js';
 
 export interface GetProjectDetailsInput {
   jobcodeId?: number;
@@ -22,7 +24,7 @@ interface FormattedTimesheetEntry {
 
 interface FormattedCostCodeGroup {
   cost_code: string;
-  entries: FormattedTimesheetEntry[];
+  entries: Omit<FormattedTimesheetEntry, 'sort_key'>[];
 }
 
 export interface GetProjectDetailsResult {
@@ -57,8 +59,7 @@ export interface GetProjectDetailsResult {
   total_notes: number;
   total_files: number;
   timesheets?: {
-    start_date: string;
-    end_date: string;
+    source: 'cache' | 'api';
     header: string;
     total_entries: number;
     total_hours: number;
@@ -66,13 +67,6 @@ export interface GetProjectDetailsResult {
     formatted: string;
   };
   message?: string;
-}
-
-function formatDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function formatShortDate(dateString: string): string {
@@ -84,13 +78,9 @@ function formatShortDate(dateString: string): string {
   return `${month}/${day}`;
 }
 
-function isDisplayableDescription(description: string): boolean {
-  const trimmed = description.trim();
+function isDisplayableDescription(description: string | null): boolean {
+  const trimmed = (description || '').trim();
   return !['', '.', '..', '...'].includes(trimmed);
-}
-
-function toDecimalHours(hours: number, minutes: number): number {
-  return parseFloat((hours + minutes / 60).toFixed(2));
 }
 
 function normalizeCostCode(segment: string): string {
@@ -141,6 +131,50 @@ function formatTimesheetGroups(
   return lines.join('\n');
 }
 
+function formatCachedEntries(entries: CachedTimeEntry[]) {
+  const groupedEntries = new Map<string, FormattedTimesheetEntry[]>();
+
+  for (const entry of entries) {
+    if (!isDisplayableDescription(entry.description)) {
+      continue;
+    }
+
+    const costCode = extractCostCode(entry.jobName);
+    const group = groupedEntries.get(costCode) || [];
+    const attachmentSuffix = entry.attachmentCount > 0 ? ` [${entry.attachmentCount} \u{1F4F7}]` : '';
+
+    group.push({
+      date: formatShortDate(entry.date),
+      employee: entry.employeeName,
+      hours: parseFloat(entry.hours.toFixed(2)),
+      notes: `${entry.description!.trim()}${attachmentSuffix}`,
+      attachment_count: entry.attachmentCount,
+      sort_key: entry.date,
+    });
+
+    groupedEntries.set(costCode, group);
+  }
+
+  const costCodes: FormattedCostCodeGroup[] = Array.from(groupedEntries.entries())
+    .map(([cost_code, costCodeEntries]) => ({
+      cost_code,
+      entries: costCodeEntries
+        .sort((a, b) => (a.sort_key || '').localeCompare(b.sort_key || '') || a.employee.localeCompare(b.employee))
+        .map(({ sort_key, ...rest }) => rest),
+    }))
+    .sort((a, b) => a.cost_code.localeCompare(b.cost_code));
+
+  const totalHours = entries
+    .filter(entry => isDisplayableDescription(entry.description))
+    .reduce((sum, entry) => sum + entry.hours, 0);
+
+  return {
+    costCodes,
+    totalEntries: costCodes.reduce((sum, group) => sum + group.entries.length, 0),
+    totalHours: parseFloat(totalHours.toFixed(2)),
+  };
+}
+
 /**
  * Get comprehensive project details including notes and files
  */
@@ -148,9 +182,8 @@ export async function getProjectDetails(
   tsheetsApi: TSheetsApi,
   input: GetProjectDetailsInput
 ): Promise<GetProjectDetailsResult> {
-  console.error(`[getProjectDetails] Getting details for project`);
+  console.error('[getProjectDetails] Getting details for project');
 
-  // Need either jobcodeId or projectName
   if (!input.jobcodeId && !input.projectName) {
     throw new Error('Either jobcodeId or projectName is required');
   }
@@ -158,7 +191,6 @@ export async function getProjectDetails(
   try {
     let jobcodeId = input.jobcodeId;
 
-    // If we have a project name, search for the jobcode first
     if (!jobcodeId && input.projectName) {
       const jobcodes = await tsheetsApi.searchJobcodes(input.projectName);
       if (jobcodes.length === 0) {
@@ -183,9 +215,7 @@ export async function getProjectDetails(
       jobcodeId = jobcodes[0].id;
     }
 
-    // Get comprehensive details
     const details = await tsheetsApi.getProjectWithDetails(jobcodeId!);
-
     const noteSummaries = details.notes.map(note => {
       const author = details.noteAuthors[note.user_id.toString()];
       return {
@@ -197,58 +227,20 @@ export async function getProjectDetails(
       };
     });
 
-    const totalFiles = noteSummaries.reduce((sum, n) => sum + n.file_count, 0);
+    const totalFiles = noteSummaries.reduce((sum, note) => sum + note.file_count, 0);
+    let cachedEntries = getEntriesByJobcode(jobcodeId!);
+    let source: 'cache' | 'api' = 'cache';
 
-    const endDate = new Date();
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 90);
-
-    const detailedReport = await getProjectReport(
-      {
-        startDate: formatDate(startDate),
-        endDate: formatDate(endDate),
-        jobcodeId: jobcodeId!,
-      },
-      tsheetsApi
-    );
-
-    const groupedEntries = new Map<string, FormattedTimesheetEntry[]>();
-
-    for (const activity of detailedReport.timeActivities) {
-      if (!isDisplayableDescription(activity.description)) {
-        continue;
-      }
-
-      const costCode = extractCostCode(activity.jobName);
-      const entries = groupedEntries.get(costCode) || [];
-      const attachmentCount = activity.attachments.length;
-      const notesSuffix = attachmentCount > 0 ? ` [${attachmentCount} \u{1F4F7}]` : '';
-
-      entries.push({
-        date: formatShortDate(activity.date),
-        employee: activity.employeeName,
-        hours: toDecimalHours(activity.hours, activity.minutes),
-        notes: `${activity.description.trim()}${notesSuffix}`,
-        attachment_count: attachmentCount,
-        sort_key: activity.date,
-      });
-
-      groupedEntries.set(costCode, entries);
+    if (cachedEntries.length === 0) {
+      console.error(`[getProjectDetails] Cache miss for jobcode ${jobcodeId}, syncing project history`);
+      await syncProjectHistory(jobcodeId!);
+      cachedEntries = getEntriesByJobcode(jobcodeId!);
+      source = 'api';
     }
 
-    const costCodes = Array.from(groupedEntries.entries())
-      .map(([cost_code, entries]) => ({
-        cost_code,
-        entries: entries
-          .sort((a, b) => (a.sort_key || '').localeCompare(b.sort_key || '') || a.employee.localeCompare(b.employee))
-          .map(({ sort_key, ...entry }) => entry),
-      }))
-      .sort((a, b) => a.cost_code.localeCompare(b.cost_code));
-
-    const timesheetHeader = buildTimesheetHeader(
-      details.jobcode?.name || details.project?.name || detailedReport.jobName,
-      jobcodeId!
-    );
+    const formattedEntries = formatCachedEntries(cachedEntries);
+    const jobName = details.jobcode?.name || details.project?.name || input.projectName || `Job #${jobcodeId}`;
+    const timesheetHeader = buildTimesheetHeader(jobName, jobcodeId!);
 
     return {
       success: true,
@@ -276,21 +268,19 @@ export async function getProjectDetails(
       total_notes: noteSummaries.length,
       total_files: totalFiles,
       timesheets: {
-        start_date: detailedReport.startDate,
-        end_date: detailedReport.endDate,
+        source,
         header: timesheetHeader,
-        total_entries: costCodes.reduce((sum, group) => sum + group.entries.length, 0),
-        total_hours: detailedReport.totalHours,
-        cost_codes: costCodes,
-        formatted: formatTimesheetGroups(timesheetHeader, costCodes),
+        total_entries: formattedEntries.totalEntries,
+        total_hours: formattedEntries.totalHours,
+        cost_codes: formattedEntries.costCodes,
+        formatted: formatTimesheetGroups(timesheetHeader, formattedEntries.costCodes),
       },
-      message: !details.project 
-        ? 'Note: This jobcode does not have an associated project. Project notes are not available.' 
+      message: !details.project
+        ? 'Note: This jobcode does not have an associated project. Project notes are not available.'
         : undefined,
     };
   } catch (error) {
-    console.error(`[getProjectDetails] Error:`, error);
+    console.error('[getProjectDetails] Error:', error);
     throw error;
   }
 }
-

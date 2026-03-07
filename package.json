@@ -8,7 +8,9 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "auth": "tsx scripts/auth-tsheets.ts",
-    "test": "tsx scripts/test-tsheets.ts"
+    "test": "tsx scripts/test-tsheets.ts",
+    "db:sync-history": "node --input-type=module -e \"import('./dist/db/sync.js').then(m => m.syncAllHistory())\"",
+    "db:sync-recent": "node --input-type=module -e \"import('./dist/db/sync.js').then(m => m.syncRecentData())\""
   },
   "repository": {
     "type": "git",
@@ -29,6 +31,7 @@
   "description": "MCP server for TSheets to Sage 100 Contractor timesheet automation",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "better-sqlite3": "^12.6.2",
     "cors": "^2.8.5",
     "docx": "^9.5.1",
     "dotenv": "^16.4.7",
@@ -38,6 +41,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^22.10.2",

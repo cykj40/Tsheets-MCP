@@ -59,11 +59,13 @@ export interface ProjectReport {
     date: string;
     employeeName: string;
     jobName: string;
+    jobcodeId?: number;
     hours: number;
     minutes: number;
     description: string;
     billableStatus: string;
     hourlyRate: number;
+    createdAt?: string;
     attachments: Attachment[];
   }>;
   attachments: Attachment[];

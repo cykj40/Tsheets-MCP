@@ -9,6 +9,7 @@ dist/
 
 # Token storage
 .tokens.json
+/data/
 
 # IDE
 .vscode/

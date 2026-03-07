@@ -31,6 +31,8 @@ import {
 import { searchJobcodes } from './tools/search-jobcodes.js';
 import { getProjectNotes } from './tools/get-project-notes.js';
 import { getProjectDetails } from './tools/get-project-details.js';
+import { initDatabase } from './db/database.js';
+import { getLastSyncDate, syncAllHistory, syncDateRange, syncRecentData } from './db/sync.js';
 import { z } from 'zod';
 
 // Zod schemas for new tools
@@ -47,6 +49,12 @@ const GetProjectNotesArgsSchema = z.object({
 const GetProjectDetailsArgsSchema = z.object({
   jobcodeId: z.number().optional(),
   projectName: z.string().optional(),
+});
+
+const SyncTimesheetsArgsSchema = z.object({
+  mode: z.enum(['recent', 'history', 'range']),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 // Load environment variables
@@ -254,7 +262,7 @@ const tools: Tool[] = [
   {
     name: 'get_project_details',
     description:
-      'Get comprehensive project information including jobcode details, project metadata, and all notes with file counts. Search by jobcode ID or project name.',
+      'Get comprehensive project information including jobcode details, project metadata, project notes, and full cached timesheet history grouped by cost code. Queries SQLite first and syncs from TSheets on cache miss.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -268,6 +276,30 @@ const tools: Tool[] = [
         },
       },
       required: [],
+    },
+  },
+  {
+    name: 'sync_timesheets',
+    description:
+      'Sync timesheet data from TSheets into local cache. Use mode "recent" for last 90 days, "history" for all historical data since 2023, or "range" with startDate/endDate for a specific period.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: {
+          type: 'string',
+          enum: ['recent', 'history', 'range'],
+          description: 'Sync mode',
+        },
+        startDate: {
+          type: 'string',
+          description: 'Required when mode is "range". Start date in YYYY-MM-DD format.',
+        },
+        endDate: {
+          type: 'string',
+          description: 'Required when mode is "range". End date in YYYY-MM-DD format.',
+        },
+      },
+      required: ['mode'],
     },
   },
 ];
@@ -304,6 +336,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       'search_jobcodes',
       'get_project_notes',
       'get_project_details',
+      'sync_timesheets',
     ];
     if (toolsNeedingTSheets.includes(name)) {
       if (!tsheetsClient || !tsheetsApi || !tokenManager) {
@@ -429,6 +462,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case 'sync_timesheets': {
+        const validated = SyncTimesheetsArgsSchema.parse(args || {});
+
+        if (validated.mode === 'range' && (!validated.startDate || !validated.endDate)) {
+          throw new Error('startDate and endDate are required when mode is "range"');
+        }
+
+        let result;
+        if (validated.mode === 'history') {
+          result = await syncAllHistory();
+        } else if (validated.mode === 'recent') {
+          result = await syncRecentData();
+        } else {
+          result = await syncDateRange(validated.startDate!, validated.endDate!);
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Synced ${result.entriesSynced} entries. Date range: ${result.startDate} to ${result.endDate}`,
+            },
+          ],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -450,6 +509,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Start server
 async function main() {
+  initDatabase();
+  const lastSyncDate = getLastSyncDate();
+  console.error(`SQLite cache ready. Last sync: ${lastSyncDate || 'never'}`);
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('TSheets-Sage MCP Server running on stdio');
