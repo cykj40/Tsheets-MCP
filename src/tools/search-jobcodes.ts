@@ -134,7 +134,12 @@ export async function searchJobcodes(
         };
     } catch (error) {
         console.error(`[searchJobcodes] Error:`, error);
-        throw error;
+        return {
+            success: false,
+            jobcodes: [],
+            total_count: 0,
+            search_term: input.search,
+        };
     }
 }
 

@@ -97,6 +97,7 @@ export function getDatabasePath(): string {
 
 export function initDatabase(): Database.Database {
   if (database) {
+    ensureSchema(database);
     return database;
   }
 
@@ -105,8 +106,13 @@ export function initDatabase(): Database.Database {
   database = new Database(DATABASE_PATH);
   database.pragma('journal_mode = WAL');
   database.pragma('foreign_keys = ON');
+  ensureSchema(database);
 
-  database.exec(`
+  return database;
+}
+
+function ensureSchema(db: Database.Database): void {
+  db.exec(`
     CREATE TABLE IF NOT EXISTS time_entries (
       id TEXT PRIMARY KEY,
       date TEXT NOT NULL,
@@ -156,12 +162,24 @@ export function initDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_entries_employee ON time_entries(employee_name);
     CREATE INDEX IF NOT EXISTS idx_entries_description ON time_entries(description);
   `);
-
-  return database;
 }
 
 export function getDatabase(): Database.Database {
   return initDatabase();
+}
+
+export function setDatabaseForTests(testDatabase: Database.Database): Database.Database {
+  database = testDatabase;
+  database.pragma('foreign_keys = ON');
+  ensureSchema(database);
+  return database;
+}
+
+export function resetDatabaseForTests(): void {
+  if (database) {
+    database.close();
+  }
+  database = null;
 }
 
 export function upsertTimeEntries(entries: TimeEntryUpsertRow[]): void {

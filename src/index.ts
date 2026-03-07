@@ -32,7 +32,8 @@ import { searchJobcodes } from './tools/search-jobcodes.js';
 import { getProjectNotes } from './tools/get-project-notes.js';
 import { getProjectDetails } from './tools/get-project-details.js';
 import { initDatabase } from './db/database.js';
-import { getLastSyncDate, syncAllHistory, syncDateRange, syncRecentData } from './db/sync.js';
+import { getLastSyncDate } from './db/sync.js';
+import { syncTimesheets, SyncTimesheetsArgsSchema } from './tools/sync-timesheets.js';
 import { z } from 'zod';
 
 // Zod schemas for new tools
@@ -49,12 +50,6 @@ const GetProjectNotesArgsSchema = z.object({
 const GetProjectDetailsArgsSchema = z.object({
   jobcodeId: z.number().optional(),
   projectName: z.string().optional(),
-});
-
-const SyncTimesheetsArgsSchema = z.object({
-  mode: z.enum(['recent', 'history', 'range']),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
 });
 
 // Load environment variables
@@ -464,25 +459,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'sync_timesheets': {
         const validated = SyncTimesheetsArgsSchema.parse(args || {});
-
-        if (validated.mode === 'range' && (!validated.startDate || !validated.endDate)) {
-          throw new Error('startDate and endDate are required when mode is "range"');
-        }
-
-        let result;
-        if (validated.mode === 'history') {
-          result = await syncAllHistory();
-        } else if (validated.mode === 'recent') {
-          result = await syncRecentData();
-        } else {
-          result = await syncDateRange(validated.startDate!, validated.endDate!);
-        }
-
         return {
           content: [
             {
               type: 'text',
-              text: `Synced ${result.entriesSynced} entries. Date range: ${result.startDate} to ${result.endDate}`,
+              text: await syncTimesheets(validated),
             },
           ],
         };

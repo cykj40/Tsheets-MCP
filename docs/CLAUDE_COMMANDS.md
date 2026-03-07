@@ -13,84 +13,118 @@ Only show entries with notes. Format: Job header, then dates, then
 employee/time/hours/notes for each entry. exclude entries with .., ..., ${name} has the notes 
 ```
 
-### This Week's Timesheets
-```
-Get this week's timesheets grouped by job and date, only entries with notes.
-```
+# TSheets MCP — Claude Desktop Prompt Reference
 
-### Specific Date Range
-```
-Get timesheets from December 18-24, 2025 grouped by job and date.
-```
+CD to project:
+cd H:\Documents\GitHub\Tsheets-MCP
 
 ---
 
-## ⚡ Quick Summaries (Faster)
-
-### Last Week Summary (Total Hours Only)
-```
-Get a quick summary of last week's hours by employee and job.
-```
-
-### This Month's Hours
-```
-Get aggregated hours for this month by employee.
-```
+## WEEKLY NOTES REPORT (basic)
+Get xx/xx/xxxx - xx/xx/xxxx timesheets. Group by job (full hierarchy), then by date.
+Only show entries with notes. Format: Job header, then dates, then
+employee/time/hours/notes for each entry. Leave out entries with ".", "..", "...", 
+"office", "supervision"
 
 ---
 
-## 🔍 Search & Filter
+## WEEKLY NOTES REPORT (with name exclusions)
+Get 02/02/2026 - 02/08/2026 timesheets. Group by job (full hierarchy), then by date.
+Only show entries with notes. Format: Job header, then dates, then
+employee/time/hours/notes for each entry. Exclude entries with "..", "...",
+[NAME] has the notes
 
-### Search for a Project
-```
-Search for jobcodes matching "NYP Buckley"
-```
-
-### Find Project by Number
-```
-Search for jobcode 25831
-```
-
-### List All Active Projects
-```
-Show all active jobcodes
-```
+→ Replace [NAME] with actual employee name to exclude their entries
+→ Example: "Cyrus has the notes" or "Marc has the notes"
+→ Replace dates with actual week range
 
 ---
 
-## 📁 Specific Project Reports
+## PROJECT FULL HISTORY (single job, all time)
+Get project details for jobcode XXXXX including all notes and files.
 
-### Project Report by Name
-```
-Get last week's timesheets for the NYP Buckley project, grouped by date.
-```
-
-### Project Report by ID
-```
-Get timesheets for jobcode 25831 from this week.
-```
-
-### Project with Full Details
-```
-Get project details for jobcode 25831 including all notes and files.
-```
+→ Returns ALL entries ever logged to that job grouped by cost code:
+  CLIENT — Job Name (jobcodeId)
+  › 1040 SUPERVISION
+  02/05 — Employee | 8.5 hrs
+    Notes here [2 📷]
+  › 1030 GENERAL LABOR
+  02/04 — Employee | 5.5 hrs
+    Notes here
 
 ---
 
-## 📝 Project Notes
+## SEARCH FOR A JOB
+Search jobcodes for "SEARCH TERM"
 
-### Get All Notes for a Project
-```
-Get all project notes for jobcode 25831
-```
-
-### Get Project Details with Notes
-```
-Show comprehensive details for the Fort Hamilton project including notes.
-```
+→ Examples:
+  Search jobcodes for "Buckley"
+  Search jobcodes for "MMC BCC"
+  Search jobcodes for "25831"
 
 ---
 
+## SAGE EXPORT — CLIPBOARD (text)
+Get xx/xx/xxxx - xx/xx/xxxx timesheets, format for Sage, and export as text.
+
+---
+
+## SAGE EXPORT — CLIPBOARD (CSV)
+Get xx/xx/xxxx - xx/xx/xxxx timesheets, format for Sage, and export as csv.
+
+---
+
+## SAGE EXPORT — CLIPBOARD (markdown)
+Get xx/xx/xxxx - xx/xx/xxxx timesheets, format for Sage, and export as markdown.
+
+---
+
+## SAGE EXPORT — DOCX
+Get xx/xx/xxxx - xx/xx/xxxx timesheets, format for Sage, and export as a docx.
+
+---
+
+## SAGE EXPORT — PDF
+Get xx/xx/xxxx - xx/xx/xxxx timesheets, format for Sage, and export as a pdf.
+
+---
+
+## SINGLE JOB SAGE EXPORT
+Get timesheets for jobcode XXXXX from xx/xx/xxxx - xx/xx/xxxx,
+format for Sage, and export as a docx.
+
+---
+
+## QUICK SUMMARY (fast, no details)
+Get a timesheet summary for xx/xx/xxxx - xx/xx/xxxx
+(optional: for jobcode XXXXX)
+
+---
+
+## SYNC DATABASE — RECENT (last 90 days)
+Sync recent timesheet data into the local cache.
+
+---
+
+## SYNC DATABASE — FULL HISTORY
+Sync all historical timesheet data from 2023 to today.
+
+---
+
+## SYNC DATABASE — CUSTOM RANGE
+Sync timesheets from xx/xx/xxxx to xx/xx/xxxx into the local cache.
+
+---
+
+## NOTES
+- Always use jobcode ID (number) not job name when you know it — more accurate
+- Use search_jobcodes first if you only know the job name
+- export_clipboard formats: text | markdown | csv
+- export_document formats: docx | pdf
+- DB sync required before querying old jobs — run full history sync once
+- Replace xx/xx/xxxx with actual dates e.g. 02/02/2026 - 02/08/2026
+- Replace XXXXX with actual jobcode ID e.g. 25831
+- Project dir: H:\Documents\GitHub\Tsheets-MCP
 ## 📊 Sage 100 Export
 
 ### Format for Sage (CSV)

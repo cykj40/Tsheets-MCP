@@ -149,23 +149,20 @@ function formatAsMarkdown(report: SageReport): string {
   lines.push('---');
   lines.push('');
 
-  // Daily summaries
-  lines.push('## Daily Breakdown');
-  lines.push('');
+  lines.push('| Date | Employee | Job | Hours | Notes |');
+  lines.push('| --- | --- | --- | --- | --- |');
 
-  report.dailySummaries.forEach(daily => {
-    lines.push(`### ${daily.date}`);
-    lines.push('');
-
-    daily.entries.forEach(entry => {
-      lines.push(`- **${entry.employeeName}** - ${entry.decimalHours} hrs`);
-      if (entry.notes) {
-        lines.push(`  - _Notes:_ ${entry.notes}`);
-      }
-    });
-
-    lines.push('');
+  report.entries.forEach(entry => {
+    lines.push(
+      `| ${escapeMarkdownTable(entry.date)} | ${escapeMarkdownTable(entry.employeeName)} | ${escapeMarkdownTable(entry.jobName)} | ${escapeMarkdownTable(entry.decimalHours)} | ${escapeMarkdownTable(cleanInlineText(entry.notes))} |`
+    );
   });
+
+  if (report.entries.length === 0) {
+    lines.push('| - | - | - | - | - |');
+  }
+
+  lines.push('');
 
   // Employee summaries
   lines.push('---');
@@ -192,7 +189,7 @@ function formatAsCSV(report: SageReport): string {
     const employee = escapeCSV(entry.employeeName);
     const job = escapeCSV(entry.jobName);
     const hours = entry.decimalHours;
-    const notes = escapeCSV(entry.notes);
+    const notes = escapeCSV(cleanInlineText(entry.notes));
 
     lines.push(`${date},${employee},${job},${hours},${notes}`);
   });
@@ -209,4 +206,12 @@ function escapeCSV(value: string): string {
   }
 
   return `"${value}"`;
+}
+
+function cleanInlineText(value: string | null | undefined): string {
+  return (value || '').replace(/\r?\n+/g, ' ').trim();
+}
+
+function escapeMarkdownTable(value: string): string {
+  return value.replace(/\|/g, '\\|');
 }

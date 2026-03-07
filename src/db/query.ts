@@ -111,5 +111,5 @@ export function getDistinctJobcodes(): Array<{ jobcodeId: number; jobName: strin
     jobcodeId: row.jobcode_id,
     jobName: row.job_name,
     totalEntries: row.total_entries,
-  }));
+  })).sort((a, b) => a.jobcodeId - b.jobcodeId);
 }
