@@ -1,12 +1,14 @@
-const getEntriesByJobcodeMock = vi.fn();
-const syncProjectHistoryMock = vi.fn();
+const mockState = vi.hoisted(() => ({
+  getEntriesByJobcodeMock: vi.fn(),
+  syncProjectHistoryMock: vi.fn(),
+}));
 
 vi.mock('../../db/query.js', () => ({
-  getEntriesByJobcode: getEntriesByJobcodeMock,
+  getEntriesByJobcode: mockState.getEntriesByJobcodeMock,
 }));
 
 vi.mock('../../db/sync.js', () => ({
-  syncProjectHistory: syncProjectHistoryMock,
+  syncProjectHistory: mockState.syncProjectHistoryMock,
 }));
 
 import { getProjectDetails } from '../../tools/get-project-details.js';
@@ -40,7 +42,7 @@ describe('getProjectDetails', () => {
   });
 
   it('uses SQLite results on cache hit and does not call the API sync path', async () => {
-    getEntriesByJobcodeMock.mockReturnValue([
+    mockState.getEntriesByJobcodeMock.mockReturnValue([
       {
         ...mockEntry,
         hours: 8.5,
@@ -50,6 +52,7 @@ describe('getProjectDetails', () => {
       },
       {
         ...mockEntryWithPhotos,
+        hours: 2.75,
         attachmentCount: 2,
         lastSynced: '2026-03-07T00:00:00Z',
         createdAt: null,
@@ -64,7 +67,7 @@ describe('getProjectDetails', () => {
 
     const result = await getProjectDetails(tsheetsApi, { jobcodeId: 25831 });
 
-    expect(syncProjectHistoryMock).not.toHaveBeenCalled();
+    expect(mockState.syncProjectHistoryMock).not.toHaveBeenCalled();
     expect(result.timesheets?.source).toBe('cache');
     expect(result.timesheets?.header).toBe('NYP — NYP Buckley 4 Telemetry Rooms/Corridor Construction (25831)');
     expect(result.timesheets?.formatted).toContain('02/03 — Cole Egan | 2.75 hrs');
@@ -75,7 +78,7 @@ describe('getProjectDetails', () => {
   });
 
   it('syncs from the API on cache miss and still formats entries correctly', async () => {
-    getEntriesByJobcodeMock
+    mockState.getEntriesByJobcodeMock
       .mockReturnValueOnce([])
       .mockReturnValueOnce([
         {
@@ -86,7 +89,7 @@ describe('getProjectDetails', () => {
           createdAt: null,
         },
       ]);
-    syncProjectHistoryMock.mockResolvedValue({
+    mockState.syncProjectHistoryMock.mockResolvedValue({
       startDate: '2023-01-01',
       endDate: '2026-03-07',
       entriesSynced: 1,
@@ -96,7 +99,7 @@ describe('getProjectDetails', () => {
 
     const result = await getProjectDetails(tsheetsApi, { jobcodeId: 25831 });
 
-    expect(syncProjectHistoryMock).toHaveBeenCalledWith(25831);
+    expect(mockState.syncProjectHistoryMock).toHaveBeenCalledWith(25831);
     expect(result.timesheets?.source).toBe('api');
     expect(result.timesheets?.formatted).toContain('02/03 — Marc Egan | 6 hrs');
   });

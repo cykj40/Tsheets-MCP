@@ -1,40 +1,49 @@
 import { getAttachmentsForEntry, getEntriesByDateRange } from '../../db/query.js';
 import { getTestDb } from '../setup.js';
 
-const initializeMock = vi.fn();
-const getAllJobcodesMock = vi.fn();
-const getProjectReportMock = vi.fn();
+const mockState = vi.hoisted(() => ({
+  initializeMock: vi.fn(),
+  getAllJobcodesMock: vi.fn(),
+  getProjectReportMock: vi.fn(),
+}));
 
 vi.mock('../../auth/token-manager.js', () => ({
-  TokenManager: vi.fn().mockImplementation(() => ({})),
+  TokenManager: class {
+    constructor(_tokenPath: string) {}
+  },
 }));
 
 vi.mock('../../api/tsheets-client.js', () => ({
-  TSheetsClient: vi.fn().mockImplementation(() => ({
-    initialize: initializeMock,
-  })),
+  TSheetsClient: class {
+    constructor(_tokenManager: unknown, _config: unknown) {}
+    async initialize() {
+      return mockState.initializeMock();
+    }
+  },
 }));
 
 vi.mock('../../api/tsheets.js', () => ({
-  TSheetsApi: vi.fn().mockImplementation(() => ({
-    getAllJobcodes: getAllJobcodesMock,
-  })),
+  TSheetsApi: class {
+    constructor(_client: unknown) {}
+    async getAllJobcodes() {
+      return mockState.getAllJobcodesMock();
+    }
+  },
 }));
 
 vi.mock('../../tools/get-project-report.js', () => ({
-  getProjectReport: getProjectReportMock,
+  getProjectReport: mockState.getProjectReportMock,
 }));
 
 describe('db sync functions', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     process.env.TSHEETS_CLIENT_ID = 'client';
     process.env.TSHEETS_CLIENT_SECRET = 'secret';
     process.env.TSHEETS_REDIRECT_URI = 'http://localhost/callback';
     process.env.TOKEN_FILE_PATH = 'fake-token.json';
-    initializeMock.mockResolvedValue(undefined);
-    getAllJobcodesMock.mockResolvedValue([
+    mockState.initializeMock.mockResolvedValue(undefined);
+    mockState.getAllJobcodesMock.mockResolvedValue([
       {
         id: 25831,
         name: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction',
@@ -49,7 +58,7 @@ describe('db sync functions', () => {
 
   describe('syncDateRange', () => {
     it('calls the TSheets API with correct date params and inserts all returned entries', async () => {
-      const report = {
+      mockState.getProjectReportMock.mockResolvedValue({
         jobName: 'All Projects',
         startDate: '2026-02-01',
         endDate: '2026-02-28',
@@ -88,13 +97,12 @@ describe('db sync functions', () => {
           },
         ],
         attachments: [{ id: 'photo-1', fileName: 'IMG_001.png', fileUrl: '', fileSize: 123 }],
-      };
-      getProjectReportMock.mockResolvedValue(report);
+      });
 
       const { syncDateRange } = await import('../../db/sync.js');
       const result = await syncDateRange('2026-02-01', '2026-02-28');
 
-      expect(getProjectReportMock).toHaveBeenCalledWith(
+      expect(mockState.getProjectReportMock).toHaveBeenCalledWith(
         { startDate: '2026-02-01', endDate: '2026-02-28', jobcodeId: undefined },
         expect.any(Object)
       );
@@ -104,7 +112,7 @@ describe('db sync functions', () => {
     });
 
     it('upserts correctly without creating duplicates on second sync', async () => {
-      getProjectReportMock.mockResolvedValue({
+      mockState.getProjectReportMock.mockResolvedValue({
         jobName: 'All Projects',
         startDate: '2026-02-01',
         endDate: '2026-02-28',
@@ -132,7 +140,7 @@ describe('db sync functions', () => {
       const { syncDateRange } = await import('../../db/sync.js');
       await syncDateRange('2026-02-01', '2026-02-28');
 
-      getProjectReportMock.mockResolvedValue({
+      mockState.getProjectReportMock.mockResolvedValue({
         jobName: 'All Projects',
         startDate: '2026-02-01',
         endDate: '2026-02-28',
@@ -165,7 +173,7 @@ describe('db sync functions', () => {
     });
 
     it('writes a record to sync_log on success', async () => {
-      getProjectReportMock.mockResolvedValue({
+      mockState.getProjectReportMock.mockResolvedValue({
         jobName: 'All Projects',
         startDate: '2026-02-01',
         endDate: '2026-02-28',
@@ -183,7 +191,7 @@ describe('db sync functions', () => {
     });
 
     it('writes an error to sync_log on API failure', async () => {
-      getProjectReportMock.mockRejectedValue(new Error('TSheets down'));
+      mockState.getProjectReportMock.mockRejectedValue(new Error('TSheets down'));
 
       const { syncDateRange } = await import('../../db/sync.js');
       await expect(syncDateRange('2026-02-01', '2026-02-28')).rejects.toThrow('TSheets down');
@@ -194,7 +202,7 @@ describe('db sync functions', () => {
     });
 
     it('returns the correct count of entries synced', async () => {
-      getProjectReportMock.mockResolvedValue({
+      mockState.getProjectReportMock.mockResolvedValue({
         jobName: 'All Projects',
         startDate: '2026-02-01',
         endDate: '2026-02-28',
@@ -257,7 +265,7 @@ describe('db sync functions', () => {
     it('uses the last 90 days based on system time', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-03-07T12:00:00Z'));
-      getProjectReportMock.mockResolvedValue({
+      mockState.getProjectReportMock.mockResolvedValue({
         jobName: 'All Projects',
         startDate: '2025-12-07',
         endDate: '2026-03-07',
@@ -270,7 +278,7 @@ describe('db sync functions', () => {
       const { syncRecentData } = await import('../../db/sync.js');
       await syncRecentData();
 
-      expect(getProjectReportMock).toHaveBeenCalledWith(
+      expect(mockState.getProjectReportMock).toHaveBeenCalledWith(
         { startDate: '2025-12-07', endDate: '2026-03-07', jobcodeId: undefined },
         expect.any(Object)
       );
@@ -281,8 +289,8 @@ describe('db sync functions', () => {
   describe('syncAllHistory', () => {
     it('breaks the range into 90-day chunks and calls the API once per chunk', async () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date('2023-07-01T00:00:00Z'));
-      getProjectReportMock.mockResolvedValue({
+      vi.setSystemTime(new Date('2023-07-01T12:00:00Z'));
+      mockState.getProjectReportMock.mockResolvedValue({
         jobName: 'All Projects',
         startDate: '2023-01-01',
         endDate: '2023-03-31',
@@ -295,13 +303,13 @@ describe('db sync functions', () => {
       const { syncAllHistory } = await import('../../db/sync.js');
       await syncAllHistory();
 
-      expect(getProjectReportMock).toHaveBeenCalledTimes(3);
-      expect(getProjectReportMock.mock.calls[0][0]).toEqual({
+      expect(mockState.getProjectReportMock).toHaveBeenCalledTimes(3);
+      expect(mockState.getProjectReportMock.mock.calls[0][0]).toEqual({
         startDate: '2023-01-01',
         endDate: '2023-03-31',
         jobcodeId: undefined,
       });
-      expect(getProjectReportMock.mock.calls[2][0]).toEqual({
+      expect(mockState.getProjectReportMock.mock.calls[2][0]).toEqual({
         startDate: '2023-06-30',
         endDate: '2023-07-01',
         jobcodeId: undefined,
@@ -312,7 +320,7 @@ describe('db sync functions', () => {
     it('syncs all chunks even when one returns zero results', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2023-05-15T00:00:00Z'));
-      getProjectReportMock
+      mockState.getProjectReportMock
         .mockResolvedValueOnce({
           jobName: 'All Projects',
           startDate: '2023-01-01',
@@ -350,7 +358,7 @@ describe('db sync functions', () => {
       const { syncAllHistory } = await import('../../db/sync.js');
       const result = await syncAllHistory();
 
-      expect(getProjectReportMock).toHaveBeenCalledTimes(2);
+      expect(mockState.getProjectReportMock).toHaveBeenCalledTimes(2);
       expect(result.entriesSynced).toBe(1);
       vi.useRealTimers();
     });

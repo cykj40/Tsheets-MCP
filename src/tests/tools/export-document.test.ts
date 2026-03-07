@@ -1,14 +1,28 @@
-const packerToBufferMock = vi.fn(async () => Buffer.from('docx-content'));
-const savePdfMock = vi.fn(async () => Uint8Array.from([1, 2, 3, 4]));
+const mockState = vi.hoisted(() => ({
+  packerToBufferMock: vi.fn(async () => Buffer.from('docx-content')),
+  savePdfMock: vi.fn(async () => Uint8Array.from([1, 2, 3, 4])),
+}));
 
 vi.mock('docx', () => ({
-  Document: vi.fn().mockImplementation(() => ({})),
-  Packer: { toBuffer: packerToBufferMock },
-  Paragraph: vi.fn().mockImplementation((args) => args),
-  TextRun: vi.fn().mockImplementation((args) => args),
-  Table: vi.fn().mockImplementation((args) => args),
-  TableCell: vi.fn().mockImplementation((args) => args),
-  TableRow: vi.fn().mockImplementation((args) => args),
+  Document: class {
+    constructor(_args: unknown) {}
+  },
+  Packer: { toBuffer: mockState.packerToBufferMock },
+  Paragraph: class {
+    constructor(public args: unknown) {}
+  },
+  TextRun: class {
+    constructor(public args: unknown) {}
+  },
+  Table: class {
+    constructor(public args: unknown) {}
+  },
+  TableCell: class {
+    constructor(public args: unknown) {}
+  },
+  TableRow: class {
+    constructor(public args: unknown) {}
+  },
   WidthType: { PERCENTAGE: 'PERCENTAGE' },
   AlignmentType: { CENTER: 'CENTER' },
   BorderStyle: {},
@@ -23,7 +37,7 @@ vi.mock('pdf-lib', () => ({
         drawLine: vi.fn(),
       })),
       embedFont: vi.fn(async () => ({})),
-      save: savePdfMock,
+      save: mockState.savePdfMock,
     })),
   },
   StandardFonts: {
