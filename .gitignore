@@ -6,10 +6,12 @@ dist/
 
 # Environment variables
 .env
+*.env
 
 # Token storage
 .tokens.json
 /data/
+*.db
 
 # IDE
 .vscode/

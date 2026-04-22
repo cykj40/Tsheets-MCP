@@ -20,6 +20,15 @@ cd H:\Documents\GitHub\Tsheets-MCP
 
 ---
 
+## PROJECT FULL HISTORY (single job, all time)
+Use this when Get project details for jobcode XXXXX returns empty:
+Get all-projects timesheets from xx/xx/xxxx to xx/xx/xxxx.
+Filter results to only show entries where the job name contains "SEARCH TERM".
+Group by cost code, then by date. Include all notes and photo counts.
+---
+
+
+
 ## WEEKLY NOTES REPORT (basic)
 Get xx/xx/xxxx - xx/xx/xxxx timesheets. Group by job (full hierarchy), then by date.
 Only show entries with notes. Format: Job header, then dates, then
@@ -39,30 +48,22 @@ employee/time/hours/notes for each entry. Exclude entries with "..", "...",
 → Replace dates with actual week range
 
 ---
-
 ## PROJECT FULL HISTORY (single job, all time)
-Get project details for jobcode XXXXX including all notes and files.
+Get all-projects timesheets from xx/xx/xxxx to xx/xx/xxxx.
+Filter to only entries where the job name contains "XXXXX".
+Leave out entries with ".", "..", "...", "office", "supervision"
 
-→ Returns ALL entries ever logged to that job grouped by cost code:
-  CLIENT — Job Name (jobcodeId)
-  › 1040 SUPERVISION
-  02/05 — Employee | 8.5 hrs
-    Notes here [2 📷]
-  › 1030 GENERAL LABOR
-  02/04 — Employee | 5.5 hrs
-    Notes here
+Format:
 
----
+MMC FDNY Damage Admin 1 Temp partition to ED 26970 › 1040 SUPERVISION
 
-## SEARCH FOR A JOB
-Search jobcodes for "SEARCH TERM"
+  Mon 02/09/2026
 
-→ Examples:
-  Search jobcodes for "Buckley"
-  Search jobcodes for "MMC BCC"
-  Search jobcodes for "25831"
+  Victor Novohatsky
+  - Abraham & Herman (Mac & Ernie) 12pm-3:30pm.
+  - Repair edgeguard.
 
----
+
 
 ## SAGE EXPORT — CLIPBOARD (text)
 Get xx/xx/xxxx - xx/xx/xxxx timesheets, format for Sage, and export as text.

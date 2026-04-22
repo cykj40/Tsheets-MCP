@@ -1,9 +1,13 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'fs';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { Jobcode } from '../types/tsheets.js';
 
-const PROJECT_DIR = new URL('../../', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PROJECT_DIR = resolve(__dirname, '../..');
 const DATA_DIR = process.env.TSHEETS_DB_PATH
   ? resolve(process.env.TSHEETS_DB_PATH, '..')
   : resolve(PROJECT_DIR, 'data');
