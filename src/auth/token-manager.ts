@@ -63,7 +63,14 @@ export class TokenManager {
 
       // Check if token is expired (with buffer)
       const now = Date.now();
-      if (tokens.expiresAt - TOKEN_EXPIRY_BUFFER_MS <= now) {
+      const remainingMs = tokens.expiresAt - now;
+      const isExpired = tokens.expiresAt - TOKEN_EXPIRY_BUFFER_MS <= now;
+      console.error(
+        `[TokenManager] expiresAt=${tokens.expiresAt} (${new Date(tokens.expiresAt).toISOString()}) ` +
+        `now=${now} (${new Date(now).toISOString()}) ` +
+        `remainingMs=${remainingMs} buffer=${TOKEN_EXPIRY_BUFFER_MS} expired=${isExpired}`,
+      );
+      if (isExpired) {
         console.error('[TokenManager] Token is expired');
         return null; // Token expired
       }

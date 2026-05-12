@@ -52,10 +52,22 @@ const GetProjectDetailsArgsSchema = z.object({
   projectName: z.string().optional(),
 });
 
-// Load environment variables
-dotenv.config();
+const dotenvResult = dotenv.config();
 
-// Validate required environment variables
+console.error(`[MCP Server] process.cwd(): ${process.cwd()}`);
+if (dotenvResult.error) {
+  console.error(`[MCP Server] dotenv: no .env loaded from cwd (${dotenvResult.error.message})`);
+} else {
+  const loadedKeys = Object.keys(dotenvResult.parsed ?? {});
+  console.error(`[MCP Server] dotenv loaded ${loadedKeys.length} keys: ${loadedKeys.join(', ')}`);
+}
+console.error(
+  `[MCP Server] CLIENT_ID in use: ${process.env.TSHEETS_CLIENT_ID
+    ? process.env.TSHEETS_CLIENT_ID.slice(0, 8) + '...'
+    : '(missing)'}`,
+);
+console.error(`[MCP Server] TOKEN_FILE_PATH env: ${process.env.TOKEN_FILE_PATH ?? '(missing)'}`);
+
 const requiredEnvVars = [
   'TSHEETS_CLIENT_ID',
   'TSHEETS_CLIENT_SECRET',
