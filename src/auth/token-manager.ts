@@ -1,8 +1,15 @@
 import { promises as fs } from 'fs';
+import { dirname, isAbsolute, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { TSheetsStoredToken } from './tsheets-oauth.js';
 import { z } from 'zod';
 
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // 5 minutes buffer
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+
+function resolveTokenFilePath(tokenFilePath: string): string {
+  return isAbsolute(tokenFilePath) ? tokenFilePath : resolve(PROJECT_ROOT, tokenFilePath);
+}
 
 // TSheets Token Schema
 const TSheetsStoredTokenSchema = z.object({
@@ -21,8 +28,8 @@ export class TokenManager {
     if (!tokenFilePath) {
       throw new Error('Token file path is required');
     }
-    this.tokenFilePath = tokenFilePath;
-    console.error(`[TokenManager] Initialized with token file: ${tokenFilePath}`);
+    this.tokenFilePath = resolveTokenFilePath(tokenFilePath);
+    console.error(`[TokenManager] Initialized with token file: ${this.tokenFilePath}`);
   }
 
   /**
