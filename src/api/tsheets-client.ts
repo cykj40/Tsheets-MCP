@@ -4,7 +4,6 @@
  * API Docs: https://tsheetsteam.github.io/api_docs/
  */
 
-import fetch from 'node-fetch';
 import { TokenManager } from '../auth/token-manager.js';
 import { TSheetsOAuth, TSheetsOAuthConfig } from '../auth/tsheets-oauth.js';
 
@@ -13,6 +12,7 @@ const TSHEETS_API_BASE_URL = 'https://rest.tsheets.com/api/v1';
 export class TSheetsClient {
   private tokenManager: TokenManager;
   private oauth: TSheetsOAuth;
+  private refreshPromise: Promise<void> | null = null;
 
   constructor(tokenManager: TokenManager, oauthConfig: TSheetsOAuthConfig) {
     this.tokenManager = tokenManager;
@@ -25,23 +25,47 @@ export class TSheetsClient {
   async initialize(): Promise<void> {
     console.error('[TSheetsClient] Initializing...');
 
-    // Check if we have valid tokens
-    const hasValid = await this.tokenManager.hasValidTokens();
+    if (await this.tokenManager.hasValidTokens()) {
+      return;
+    }
 
-    if (!hasValid) {
-      // Try to refresh if we have a refresh token
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.refreshTokensIfNeeded().finally(() => {
+        this.refreshPromise = null;
+      });
+    }
+
+    await this.refreshPromise;
+  }
+
+  private async refreshTokensIfNeeded(): Promise<void> {
+    await this.tokenManager.withRefreshLock(async () => {
+      if (await this.tokenManager.hasValidTokens()) {
+        console.error('[TSheetsClient] Token already refreshed by another process');
+        return;
+      }
+
       const refreshToken = await this.tokenManager.getRefreshToken();
       if (!refreshToken) {
-        throw new Error('No tokens found. Please run authentication first.');
+        throw new Error('No tokens found. Please run authentication first (npm run auth).');
       }
 
       console.error('[TSheetsClient] Token expired, refreshing...');
-      const newTokens = await this.oauth.refreshAccessToken(refreshToken);
 
-      // Save new tokens
-      await this.tokenManager.saveTokens(newTokens);
-      console.error('[TSheetsClient] Token refreshed successfully');
-    }
+      try {
+        const newTokens = await this.oauth.refreshAccessToken(refreshToken);
+        await this.tokenManager.saveTokens(newTokens);
+        console.error('[TSheetsClient] Token refreshed successfully');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes('refresh_token is invalid')) {
+          throw new Error(
+            'TSheets refresh token is invalid. Run `npm run auth` to re-authenticate.',
+          );
+        }
+        throw error;
+      }
+    });
   }
 
   /**

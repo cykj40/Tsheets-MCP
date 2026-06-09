@@ -5,6 +5,8 @@ import { TSheetsStoredToken } from './tsheets-oauth.js';
 import { z } from 'zod';
 
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // 5 minutes buffer
+const LOCK_RETRY_MS = 100;
+const LOCK_MAX_WAIT_MS = 30_000;
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function resolveTokenFilePath(tokenFilePath: string): string {
@@ -95,16 +97,65 @@ export class TokenManager {
     }
   }
 
+  getTokenFilePath(): string {
+    return this.tokenFilePath;
+  }
+
   /**
-   * Save tokens to file
+   * Serialize refresh so only one process rotates TSheets tokens at a time.
+   * TSheets invalidates the previous refresh_token on each refresh.
+   */
+  async withRefreshLock<T>(operation: () => Promise<T>): Promise<T> {
+    const lockPath = `${this.tokenFilePath}.lock`;
+    const release = await this.acquireLock(lockPath);
+    try {
+      return await operation();
+    } finally {
+      await release();
+    }
+  }
+
+  private async acquireLock(lockPath: string): Promise<() => Promise<void>> {
+    const start = Date.now();
+
+    while (Date.now() - start < LOCK_MAX_WAIT_MS) {
+      try {
+        await fs.writeFile(lockPath, `${process.pid}@${Date.now()}`, { flag: 'wx' });
+        return async () => {
+          try {
+            await fs.unlink(lockPath);
+          } catch {
+            // Lock already removed or never created.
+          }
+        };
+      } catch (error) {
+        if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+          await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_MS));
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error('Timed out waiting for token refresh lock');
+  }
+
+  /**
+   * Save tokens to file (atomic write to avoid partial/corrupt token files)
    */
   async saveTokens(tokens: TSheetsStoredToken): Promise<void> {
     const validated = TSheetsStoredTokenSchema.parse(tokens);
-    await fs.writeFile(
-      this.tokenFilePath,
-      JSON.stringify(validated, null, 2),
-      'utf-8'
-    );
+    if (validated.accessToken === validated.refreshToken) {
+      console.error('[TokenManager] Warning: access and refresh tokens are identical');
+    }
+
+    await fs.mkdir(dirname(this.tokenFilePath), { recursive: true });
+
+    const tempPath = `${this.tokenFilePath}.${process.pid}.tmp`;
+    const content = JSON.stringify(validated, null, 2);
+    await fs.writeFile(tempPath, content, 'utf-8');
+    await fs.rename(tempPath, this.tokenFilePath);
+    console.error(`[TokenManager] Tokens saved to ${this.tokenFilePath}`);
   }
 
   /**

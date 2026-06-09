@@ -4,7 +4,6 @@
  * Docs: https://tsheetsteam.github.io/api_docs/?javascript--node#oauth2-0
  */
 
-import fetch from 'node-fetch';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { Server } from 'http';

@@ -25,6 +25,12 @@ async function main() {
   console.log('TSHEETS OAUTH AUTHENTICATION');
   console.log('='.repeat(60) + '\n');
 
+  if (process.env.NODE_OPTIONS?.includes('--use-system-ca') !== true) {
+    console.log('Tip: On corporate networks, run with TLS fix if token exchange fails:');
+    console.log('  set NODE_OPTIONS=--use-system-ca');
+    console.log('  npm run auth\n');
+  }
+
   // Validate required env vars
   const requiredVars = ['TSHEETS_CLIENT_ID', 'TSHEETS_CLIENT_SECRET', 'TSHEETS_REDIRECT_URI', 'TOKEN_FILE_PATH'];
   for (const varName of requiredVars) {
@@ -78,6 +84,10 @@ async function main() {
 
     // Exchange for tokens
     const tokens = await oauth.exchangeCodeForTokens(code);
+
+    if (tokens.accessToken === tokens.refreshToken) {
+      throw new Error('TSheets returned identical access and refresh tokens. Re-authentication may have failed.');
+    }
 
     // Save tokens
     await tokenManager.saveTokens(tokens);

@@ -5,15 +5,16 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
-    "auth": "tsx scripts/auth-tsheets.ts",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest watch",
-    "db:sync-history": "node --input-type=module -e \"import('./dist/db/sync.js').then(m => m.syncAllHistory())\"",
-    "db:sync-recent": "node --input-type=module -e \"import('./dist/db/sync.js').then(m => m.syncRecentData())\""
+    "dev": "NODE_OPTIONS=--use-system-ca tsx watch src/index.ts",
+    "start": "NODE_OPTIONS=--use-system-ca node dist/index.js",
+    "auth": "NODE_OPTIONS=--use-system-ca tsx scripts/auth-tsheets.ts",
+    "test:tsheets": "NODE_OPTIONS=--use-system-ca tsx scripts/test-tsheets.ts",
+    "test": "NODE_OPTIONS=--use-system-ca vitest",
+    "test:run": "NODE_OPTIONS=--use-system-ca vitest run",
+    "test:coverage": "NODE_OPTIONS=--use-system-ca vitest run --coverage",
+    "test:watch": "NODE_OPTIONS=--use-system-ca vitest watch",
+    "db:sync-history": "NODE_OPTIONS=--use-system-ca node --input-type=module -e \"import('./dist/db/sync.js').then(m => m.syncAllHistory())\"",
+    "db:sync-recent": "NODE_OPTIONS=--use-system-ca node --input-type=module -e \"import('./dist/db/sync.js').then(m => m.syncRecentData())\""
   },
   "repository": {
     "type": "git",
