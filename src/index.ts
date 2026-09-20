@@ -131,7 +131,7 @@ const tools: Tool[] = [
         },
         jobcodeId: {
           type: 'number',
-          description: 'Optional: Filter by specific jobcode ID (e.g., 25802)',
+          description: 'Optional: Filter by specific jobcode ID (e.g., 10001)',
         },
       },
       required: [],
@@ -158,11 +158,11 @@ const tools: Tool[] = [
         },
         projectName: {
           type: 'string',
-          description: 'Project/jobcode name or numeric ID (e.g., "25802" or "Fort Hamilton"). Searches for partial matches. For best results, use jobcodeId instead after searching with search_jobcodes.',
+          description: 'Project/jobcode name or numeric ID (e.g., "10001" or "Acme Tower"). Searches for partial matches. For best results, use jobcodeId instead after searching with search_jobcodes.',
         },
         jobcodeId: {
           type: 'number',
-          description: 'PREFERRED: Direct numeric jobcode ID for exact matching (e.g., 25802). Use search_jobcodes first to find this ID.',
+          description: 'PREFERRED: Direct numeric jobcode ID for exact matching (e.g., 10001). Use search_jobcodes first to find this ID.',
         },
       },
       required: [],
@@ -236,7 +236,7 @@ const tools: Tool[] = [
       properties: {
         search: {
           type: 'string',
-          description: 'Search term: partial name, numeric ID, or short code (e.g., "MMC BCC", "Mammography", "25839", "1030"). Searches across name and short_code fields.',
+          description: 'Search term: partial name, numeric ID, or short code (e.g., "Acme Lab", "Acme Tower", "10001", "1030"). Searches across name and short_code fields.',
         },
         active: {
           type: 'string',
@@ -275,7 +275,7 @@ const tools: Tool[] = [
       properties: {
         jobcodeId: {
           type: 'number',
-          description: 'Jobcode ID (e.g., 25802)',
+          description: 'Jobcode ID (e.g., 10001)',
         },
         projectName: {
           type: 'string',

@@ -9,7 +9,7 @@ export const GetProjectReportArgsSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   dateRange: z.string().optional(), // Natural language like "last week", "this month"
-  projectName: z.string().optional(), // TSheets jobcode name or ID (e.g., "25802" or "Fort Hamilton Parkway")
+  projectName: z.string().optional(), // TSheets jobcode name or ID (e.g., "10001" or "Acme Tower")
   jobcodeId: z.number().optional(), // Direct jobcode ID for exact matching
 });
 

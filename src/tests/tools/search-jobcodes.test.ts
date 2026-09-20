@@ -10,16 +10,16 @@ describe('searchJobcodes tool', () => {
     tsheetsApi.getAllJobcodes.mockResolvedValue([
       {
         id: 1,
-        name: 'NYP Buckley 4 Telemetry',
-        short_code: '25831',
+        name: 'Acme Clinic Renovation',
+        short_code: '10001',
         type: 'regular',
         active: true,
         has_children: false,
       },
       {
         id: 2,
-        name: 'MMC Mammography',
-        short_code: '25839',
+        name: 'Acme Lab Expansion',
+        short_code: '10002',
         type: 'regular',
         active: true,
         has_children: false,
@@ -28,14 +28,14 @@ describe('searchJobcodes tool', () => {
   });
 
   it('returns matching jobcodes for a partial name', async () => {
-    const result = await searchJobcodes(tsheetsApi, { search: 'Buckley' });
+    const result = await searchJobcodes(tsheetsApi, { search: 'Clinic' });
     expect(result.success).toBe(true);
     expect(result.jobcodes).toHaveLength(1);
-    expect(result.jobcodes[0].name).toContain('Buckley');
+    expect(result.jobcodes[0].name).toContain('Clinic');
   });
 
   it('returns a match for numeric ID search', async () => {
-    const result = await searchJobcodes(tsheetsApi, { search: '25839' });
+    const result = await searchJobcodes(tsheetsApi, { search: '10002' });
     expect(result.jobcodes).toHaveLength(1);
     expect(result.jobcodes[0].id).toBe(2);
   });
@@ -47,12 +47,12 @@ describe('searchJobcodes tool', () => {
 
   it('handles API errors gracefully', async () => {
     tsheetsApi.getAllJobcodes.mockRejectedValue(new Error('boom'));
-    const result = await searchJobcodes(tsheetsApi, { search: 'Buckley' });
+    const result = await searchJobcodes(tsheetsApi, { search: 'Clinic' });
     expect(result).toEqual({
       success: false,
       jobcodes: [],
       total_count: 0,
-      search_term: 'Buckley',
+      search_term: 'Clinic',
     });
   });
 });

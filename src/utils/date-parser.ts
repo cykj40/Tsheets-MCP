@@ -145,7 +145,7 @@ function formatDate(date: Date): string {
 
 /**
  * Parse job identifier which might include number and name
- * e.g., "25802 MMC Fort Hamilton" -> { jobNumber: "25802", jobName: "MMC Fort Hamilton" }
+ * e.g., "10001 Acme Tower" -> { jobNumber: "10001", jobName: "Acme Tower" }
  */
 export function parseJobIdentifier(input: string): { jobNumber?: string; jobName?: string } {
   const trimmed = input.trim();

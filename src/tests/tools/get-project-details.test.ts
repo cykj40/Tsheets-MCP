@@ -24,15 +24,15 @@ describe('getProjectDetails', () => {
     vi.clearAllMocks();
     tsheetsApi.getProjectWithDetails.mockResolvedValue({
       jobcode: {
-        id: 25831,
-        name: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction',
-        short_code: '25831',
+        id: 10001,
+        name: 'Acme Clinic Renovation',
+        short_code: '10001',
         type: 'regular',
         active: true,
       },
       project: {
         id: 10,
-        name: 'Buckley 4 Telemetry Rooms/Corridor Construction',
+        name: 'Clinic Renovation',
         active: true,
       },
       notes: [],
@@ -65,12 +65,12 @@ describe('getProjectDetails', () => {
       },
     ]);
 
-    const result = await getProjectDetails(tsheetsApi, { jobcodeId: 25831 });
+    const result = await getProjectDetails(tsheetsApi, { jobcodeId: 10001 });
 
     expect(mockState.syncProjectHistoryMock).not.toHaveBeenCalled();
     expect(result.timesheets?.source).toBe('cache');
-    expect(result.timesheets?.header).toBe('NYP — NYP Buckley 4 Telemetry Rooms/Corridor Construction (25831)');
-    expect(result.timesheets?.formatted).toContain('02/03 — Cole Egan | 2.75 hrs');
+    expect(result.timesheets?.header).toBe('Acme — Acme Clinic Renovation (10001)');
+    expect(result.timesheets?.formatted).toContain('02/03 — John Smith | 2.75 hrs');
     expect(result.timesheets?.formatted).toContain('[2 📷]');
     expect(result.timesheets?.formatted).not.toContain('\n  .');
     expect(result.timesheets?.cost_codes).toHaveLength(1);
@@ -97,10 +97,10 @@ describe('getProjectDetails', () => {
       jobcodesSynced: 1,
     });
 
-    const result = await getProjectDetails(tsheetsApi, { jobcodeId: 25831 });
+    const result = await getProjectDetails(tsheetsApi, { jobcodeId: 10001 });
 
-    expect(mockState.syncProjectHistoryMock).toHaveBeenCalledWith(25831);
+    expect(mockState.syncProjectHistoryMock).toHaveBeenCalledWith(10001);
     expect(result.timesheets?.source).toBe('api');
-    expect(result.timesheets?.formatted).toContain('02/03 — Marc Egan | 6 hrs');
+    expect(result.timesheets?.formatted).toContain('02/03 — Jane Doe | 6 hrs');
   });
 });

@@ -1,14 +1,14 @@
 import { ProjectReport } from '../../types/sage.js';
 
 export const mockEntry = {
-  id: '792651992',
+  id: '80001',
   date: '2026-02-03',
-  employeeName: 'Marc Egan',
-  jobName: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction 25831 25831 \u203A 1040 SUPERVISION 1040',
-  jobcodeId: 25831,
+  employeeName: 'Jane Doe',
+  jobName: 'Acme Clinic Renovation 10001 10001 \u203A 1040 SUPERVISION 1040',
+  jobcodeId: 10001,
   hours: 6,
   minutes: 0,
-  description: 'Me, Cole, Pawel. 5:45am start. 2 plumbers on site.',
+  description: 'Team of 3. 6:00am start. Electricians on site.',
   billableStatus: 'NotBillable',
   hourlyRate: 0,
   attachments: [],
@@ -16,25 +16,25 @@ export const mockEntry = {
 
 export const mockEntryWithPhotos = {
   ...mockEntry,
-  id: '792651993',
-  employeeName: 'Cole Egan',
+  id: '80002',
+  employeeName: 'John Smith',
   hours: 2,
   minutes: 45,
   description: 'Patch wall after probe, insulate and sheetrock',
   attachments: [
-    { id: '56670630', fileName: 'IMG_001.png', fileUrl: '', fileSize: 1397246 },
-    { id: '56670631', fileName: 'IMG_002.png', fileUrl: '', fileSize: 1280563 },
+    { id: '90001', fileName: 'IMG_001.png', fileUrl: '', fileSize: 1397246 },
+    { id: '90002', fileName: 'IMG_002.png', fileUrl: '', fileSize: 1280563 },
   ],
 };
 
 export const mockEntryNoNotes = {
   ...mockEntry,
-  id: '792651994',
+  id: '80003',
   description: '.',
 };
 
 export const mockProjectReport: ProjectReport = {
-  jobName: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction',
+  jobName: 'Acme Clinic Renovation',
   startDate: '2026-02-02',
   endDate: '2026-02-08',
   totalHours: 8.75,
@@ -52,16 +52,16 @@ export const mockSageReport = {
   entries: [
     {
       date: '2026-02-02',
-      employeeName: 'Marc Egan',
-      jobName: 'NYP Buckley 4 Telemetry 25831',
+      employeeName: 'Jane Doe',
+      jobName: 'Acme Clinic Renovation 10001',
       hours: 6.0,
       decimalHours: '6.00',
       notes: 'Patch wall after probe, insulate and sheetrock',
     },
     {
       date: '2026-02-02',
-      employeeName: 'Cole Egan',
-      jobName: 'NYP Buckley 4 Telemetry 25831',
+      employeeName: 'John Smith',
+      jobName: 'Acme Clinic Renovation 10001',
       hours: 2.75,
       decimalHours: '2.75',
       notes: 'Notes with a "quote" and, a comma',
@@ -69,13 +69,13 @@ export const mockSageReport = {
   ],
   employeeSummaries: [
     {
-      name: 'Cole Egan',
+      name: 'John Smith',
       totalHours: 2.75,
       entries: [
         {
           date: '2026-02-02',
-          employeeName: 'Cole Egan',
-          jobName: 'NYP Buckley 4 Telemetry 25831',
+          employeeName: 'John Smith',
+          jobName: 'Acme Clinic Renovation 10001',
           hours: 2.75,
           decimalHours: '2.75',
           notes: 'Notes with a "quote" and, a comma',
@@ -83,13 +83,13 @@ export const mockSageReport = {
       ],
     },
     {
-      name: 'Marc Egan',
+      name: 'Jane Doe',
       totalHours: 6.0,
       entries: [
         {
           date: '2026-02-02',
-          employeeName: 'Marc Egan',
-          jobName: 'NYP Buckley 4 Telemetry 25831',
+          employeeName: 'Jane Doe',
+          jobName: 'Acme Clinic Renovation 10001',
           hours: 6.0,
           decimalHours: '6.00',
           notes: 'Patch wall after probe, insulate and sheetrock',
@@ -104,16 +104,16 @@ export const mockSageReport = {
       entries: [
         {
           date: '2026-02-02',
-          employeeName: 'Marc Egan',
-          jobName: 'NYP Buckley 4 Telemetry 25831',
+          employeeName: 'Jane Doe',
+          jobName: 'Acme Clinic Renovation 10001',
           hours: 6.0,
           decimalHours: '6.00',
           notes: 'Patch wall after probe, insulate and sheetrock',
         },
         {
           date: '2026-02-02',
-          employeeName: 'Cole Egan',
-          jobName: 'NYP Buckley 4 Telemetry 25831',
+          employeeName: 'John Smith',
+          jobName: 'Acme Clinic Renovation 10001',
           hours: 2.75,
           decimalHours: '2.75',
           notes: 'Notes with a "quote" and, a comma',

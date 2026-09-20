@@ -5,9 +5,9 @@ describe('db query functions', () => {
   beforeEach(() => {
     upsertJobcodes([
       {
-        id: 25831,
-        name: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction',
-        short_code: '25831',
+        id: 10001,
+        name: 'Acme Clinic Renovation',
+        short_code: '10001',
         parent_id: undefined,
         active: true,
         has_children: true,
@@ -17,15 +17,15 @@ describe('db query functions', () => {
         id: 1030,
         name: '1030 GENERAL LABOR',
         short_code: '1030',
-        parent_id: 25831,
+        parent_id: 10001,
         active: true,
         has_children: false,
         type: 'regular',
       },
       {
-        id: 99999,
-        name: 'MMC Other Project',
-        short_code: '99999',
+        id: 10002,
+        name: 'Acme Lab Expansion',
+        short_code: '10002',
         parent_id: undefined,
         active: true,
         has_children: false,
@@ -38,7 +38,7 @@ describe('db query functions', () => {
         id: 'entry-2',
         date: '2026-02-05',
         employeeName: 'Zed Alpha',
-        jobName: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction 25831 25831 \u203A 1030 GENERAL LABOR 1030',
+        jobName: 'Acme Clinic Renovation 10001 10001 \u203A 1030 GENERAL LABOR 1030',
         jobcodeId: 1030,
         hours: 4.5,
         minutes: 30,
@@ -52,8 +52,8 @@ describe('db query functions', () => {
         id: 'entry-1',
         date: '2026-02-05',
         employeeName: 'Amy Beta',
-        jobName: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction 25831 25831 \u203A 1040 SUPERVISION 1040',
-        jobcodeId: 25831,
+        jobName: 'Acme Clinic Renovation 10001 10001 \u203A 1040 SUPERVISION 1040',
+        jobcodeId: 10001,
         hours: 8.5,
         minutes: 30,
         description: 'Supervision',
@@ -65,9 +65,9 @@ describe('db query functions', () => {
       {
         id: 'entry-3',
         date: '2026-02-06',
-        employeeName: 'Marc Egan',
-        jobName: 'MMC Different Job 99999',
-        jobcodeId: 99999,
+        employeeName: 'Jane Doe',
+        jobName: 'Acme Lab Expansion 10002',
+        jobcodeId: 10002,
         hours: 7,
         minutes: 0,
         description: 'Other job work',
@@ -98,7 +98,7 @@ describe('db query functions', () => {
 
   describe('getEntriesByJobcode', () => {
     it('returns all entries for that jobcode', () => {
-      const entries = getEntriesByJobcode(25831);
+      const entries = getEntriesByJobcode(10001);
       expect(entries).toHaveLength(2);
     });
 
@@ -107,13 +107,13 @@ describe('db query functions', () => {
     });
 
     it('returns results sorted by date ascending then employee_name ascending', () => {
-      const entries = getEntriesByJobcode(25831);
+      const entries = getEntriesByJobcode(10001);
       expect(entries.map(entry => entry.id)).toEqual(['entry-1', 'entry-2']);
     });
 
     it('does not include entries from other jobcodes', () => {
-      const entries = getEntriesByJobcode(25831);
-      expect(entries.some(entry => entry.jobcodeId === 99999)).toBe(false);
+      const entries = getEntriesByJobcode(10001);
+      expect(entries.some(entry => entry.jobcodeId === 10002)).toBe(false);
     });
   });
 
@@ -129,7 +129,7 @@ describe('db query functions', () => {
     });
 
     it('applies the optional jobcodeId filter correctly', () => {
-      const entries = getEntriesByDateRange('2026-02-01', '2026-02-10', 25831);
+      const entries = getEntriesByDateRange('2026-02-01', '2026-02-10', 10001);
       expect(entries.map(entry => entry.id)).toEqual(['entry-1', 'entry-2']);
     });
 
@@ -140,12 +140,12 @@ describe('db query functions', () => {
 
   describe('searchEntriesByJobName', () => {
     it('returns partial matches', () => {
-      const entries = searchEntriesByJobName('Buckley');
+      const entries = searchEntriesByJobName('Clinic');
       expect(entries).toHaveLength(2);
     });
 
     it('is case insensitive', () => {
-      const entries = searchEntriesByJobName('buckley');
+      const entries = searchEntriesByJobName('clinic');
       expect(entries).toHaveLength(2);
     });
 
@@ -173,13 +173,13 @@ describe('db query functions', () => {
           totalEntries: 1,
         },
         {
-          jobcodeId: 25831,
-          jobName: 'NYP Buckley 4 Telemetry Rooms/Corridor Construction',
+          jobcodeId: 10001,
+          jobName: 'Acme Clinic Renovation',
           totalEntries: 1,
         },
         {
-          jobcodeId: 99999,
-          jobName: 'MMC Other Project',
+          jobcodeId: 10002,
+          jobName: 'Acme Lab Expansion',
           totalEntries: 1,
         },
       ]);
@@ -187,7 +187,7 @@ describe('db query functions', () => {
 
     it('returns jobcodes sorted by jobcodeId', () => {
       const jobcodes = getDistinctJobcodes();
-      expect(jobcodes.map(jobcode => jobcode.jobcodeId)).toEqual([1030, 25831, 99999]);
+      expect(jobcodes.map(jobcode => jobcode.jobcodeId)).toEqual([1030, 10001, 10002]);
     });
   });
 });

@@ -8,7 +8,7 @@ describe('exportClipboard', () => {
       expect(output).toContain('JOB: All Projects');
       expect(output).toContain('DATE RANGE: 2026-02-02 - 2026-02-08');
       expect(output).toContain('TOTAL HOURS: 87.50');
-      expect(output).toContain('Marc Egan - 6.00 hrs');
+      expect(output).toContain('Jane Doe - 6.00 hrs');
       expect(output).toContain('EMPLOYEE SUMMARIES');
     });
 
@@ -26,7 +26,7 @@ describe('exportClipboard', () => {
       const output = exportClipboard({ sageReport: mockSageReport as any, format: 'csv' });
       const [header, firstRow] = output.split('\n');
       expect(header).toBe('Date,Employee,Job,Hours,Notes');
-      expect(firstRow).toContain('"2026-02-02","Marc Egan","NYP Buckley 4 Telemetry 25831",6.00,');
+      expect(firstRow).toContain('"2026-02-02","Jane Doe","Acme Clinic Renovation 10001",6.00,');
     });
 
     it('quotes commas and escapes double quotes', () => {
@@ -41,7 +41,7 @@ describe('exportClipboard', () => {
           entries: [
             {
               date: '2026-02-02',
-              employeeName: 'Marc Egan',
+              employeeName: 'Jane Doe',
               jobName: 'Job',
               hours: 1,
               decimalHours: '1.00',
@@ -49,7 +49,7 @@ describe('exportClipboard', () => {
             },
             {
               date: '2026-02-03',
-              employeeName: 'Cole Egan',
+              employeeName: 'John Smith',
               jobName: 'Job',
               hours: 2,
               decimalHours: '2.00',
@@ -70,7 +70,7 @@ describe('exportClipboard', () => {
       const output = exportClipboard({ sageReport: mockSageReport as any, format: 'markdown' });
       expect(output).toContain('# All Projects');
       expect(output).toContain('| Date | Employee | Job | Hours | Notes |');
-      expect(output).toContain('| 2026-02-02 | Marc Egan | NYP Buckley 4 Telemetry 25831 | 6.00 | Patch wall after probe, insulate and sheetrock |');
+      expect(output).toContain('| 2026-02-02 | Jane Doe | Acme Clinic Renovation 10001 | 6.00 | Patch wall after probe, insulate and sheetrock |');
     });
 
     it('produces valid markdown for empty entries', () => {

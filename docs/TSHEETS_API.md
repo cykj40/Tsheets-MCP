@@ -34,7 +34,7 @@
 **Full Job Path Display Format:**
 When displaying jobcode hierarchies, traverse from child to root using `parent_id` and join with ` › ` separator.
 
-Example: `NYP Buckley 4 Telemetry Rooms/Corridor Construction 25831 › 1030 GENERAL LABOR`
+Example: `Acme Building Renovation 10001 › 1030 GENERAL LABOR`
 
 Format: `{parent.name} {parent.short_code} › {child.name} {child.short_code}`
 
