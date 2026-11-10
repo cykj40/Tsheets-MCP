@@ -113,6 +113,8 @@ export interface CoverageReport {
   /** Job-days with files and no note. Not in `jobs`. */
   photosOnly: JobGroup[];
   excluded: { jobDays: number; hours: number };
+  /** flagged = hours in thin+missing job-days; scanned = hours in all scanned job-days (same set as counts.scanned). */
+  hours: { flagged: number; scanned: number };
   /** Problems found while building (e.g. timesheets on unknown jobcodes). */
   warnings: string[];
 }
@@ -133,6 +135,14 @@ export interface CoverageResult {
 }
 
 const roundHours = (seconds: number) => Math.round((seconds / 3600) * 100) / 100;
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** "Sun" for "2026-11-08". Uses UTC so the machine's timezone cannot shift the day. */
+export function weekdayOf(date: string): string {
+  const t = Date.parse(`${date}T00:00:00Z`);
+  return Number.isNaN(t) ? '???' : WEEKDAYS[new Date(t).getUTCDay()];
+}
 
 /** One line, collapsed whitespace, at most `max` characters (ellipsis included). */
 export function truncateNote(text: string, max: number = NOTE_PREVIEW_CHARS): string {
@@ -269,6 +279,8 @@ export function buildCoverageReport(
 
   const counts = { scanned: 0, covered: 0, thin: 0, missing: 0, photosOnly: 0 };
   const excluded = { jobDays: 0, seconds: 0 };
+  let scannedSeconds = 0;
+  let flaggedSeconds = 0;
   const flagged: JobDay[] = [];
   const photosOnly: JobDay[] = [];
 
@@ -283,6 +295,8 @@ export function buildCoverageReport(
     const status = classify(a.noteChars, a.hasFiles, minChars);
     counts.scanned++;
     counts[status]++;
+    scannedSeconds += a.totalSeconds;
+    if (status !== 'covered') flaggedSeconds += a.totalSeconds;
     const isPhotosOnly = a.hasFiles && a.noteChars === 0;
     if (isPhotosOnly) counts.photosOnly++;
     if (status === 'covered' && !isPhotosOnly) continue;
@@ -323,6 +337,7 @@ export function buildCoverageReport(
     jobs: groupByJob(flagged),
     photosOnly: groupByJob(photosOnly),
     excluded: { jobDays: excluded.jobDays, hours: roundHours(excluded.seconds) },
+    hours: { flagged: roundHours(flaggedSeconds), scanned: roundHours(scannedSeconds) },
     warnings,
   };
 }
@@ -333,7 +348,7 @@ function renderGroups(groups: JobGroup[], lines: string[], showNoteText: boolean
     for (const d of job.days) {
       const crew = d.crew.map(c => `${c.name} ${c.hours}h`).join(', ');
       const detail = d.hasNote ? `${d.noteChars} note chars` : 'no note';
-      let line = `  ${d.date}  ${d.status.toUpperCase().padEnd(7)}  ${d.totalHours}h  ${detail}${d.hasFiles ? ', files' : ', no files'}  [${crew}]`;
+      let line = `  ${weekdayOf(d.date)} ${d.date}  ${d.status.toUpperCase().padEnd(7)}  ${d.totalHours}h  ${detail}${d.hasFiles ? ', files' : ', no files'}  [${crew}]`;
       if (showNoteText && d.status === 'thin') line += `  note: "${truncateNote(d.noteText)}"`;
       lines.push(line);
     }
@@ -359,6 +374,9 @@ export function formatCoverageText(result: CoverageResult): string {
   if (result.match) lines.push(`Filter: job name matches ${result.match} (counts are for the filtered set)`);
   lines.push(
     `Job-days scanned: ${report.counts.scanned} | covered: ${report.counts.covered} | thin: ${report.counts.thin} | missing: ${report.counts.missing} | photos-only: ${report.counts.photosOnly} (included in covered)`,
+  );
+  lines.push(
+    `Hours flagged: ${report.hours.flagged} of ${report.hours.scanned} total (thin+missing vs all scanned)`,
   );
   lines.push(
     `excluded: ${report.excluded.jobDays} job-days, ${report.excluded.hours} hours` +

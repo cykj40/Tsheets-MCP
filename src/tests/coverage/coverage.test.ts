@@ -3,6 +3,7 @@ import {
   formatCoverageText,
   classify,
   normalizeNote,
+  weekdayOf,
   THIN_NOTE_CHARS,
   type CoverageInput,
   type CoverageResult,
@@ -248,6 +249,53 @@ describe('coverage: text output', () => {
     expect(text).toContain('NYP Buckley (25831)');
     expect(text).toContain('MISSING');
     expect(text).not.toContain('INCOMPLETE');
+  });
+
+  it('shows the weekday on each job-day line', () => {
+    const report = build([
+      ts({ id: 1, date: '2026-11-08' }), // Sunday
+      ts({ id: 2, date: '2026-03-02' }), // Monday
+    ]);
+    const text = formatCoverageText(result({ report }));
+    expect(text).toContain('  Sun 2026-11-08  MISSING');
+    expect(text).toContain('  Mon 2026-03-02  MISSING');
+  });
+
+  it('weekdayOf is timezone-independent and handles bad input', () => {
+    expect(weekdayOf('2026-11-08')).toBe('Sun');
+    expect(weekdayOf('2026-11-14')).toBe('Sat');
+    expect(weekdayOf('2024-02-29')).toBe('Thu');
+    expect(weekdayOf('nope')).toBe('???');
+  });
+
+  it('prints hours flagged (thin+missing) of all scanned hours', () => {
+    const report = build([
+      ts({ id: 1, date: '2026-03-02', duration: 3600 }), // missing, 1h
+      ts({ id: 2, date: '2026-03-03', duration: 7200, notes: 'poured slab' }), // thin, 2h
+      ts({ id: 3, date: '2026-03-04', duration: 10800, notes: 'Framed and hung drywall in rooms 4 through 6 today' }), // covered, 3h
+    ]);
+    expect(report.hours).toEqual({ flagged: 3, scanned: 6 });
+    const text = formatCoverageText(result({ report }));
+    expect(text).toContain('Hours flagged: 3 of 6 total (thin+missing vs all scanned)');
+  });
+
+  it('hours exclude excluded and filtered-out job-days, and do not flag photos-only', () => {
+    const report = buildCoverageReport(
+      {
+        timesheets: [
+          ts({ id: 1, jobcode_id: 11, duration: 3600 }), // NYP Buckley: excluded
+          ts({ id: 2, jobcode_id: 21, duration: 7200, date: '2026-03-03', attached_files: [500] }), // MMC: photos only, covered
+          ts({ id: 3, jobcode_id: 11, duration: 36000, date: '2026-03-04' }), // NYP Buckley: excluded
+        ],
+        jobcodes,
+        users,
+        files: { '500': { active: true } },
+      },
+      { exclude: job => job.name === 'NYP Buckley' },
+    );
+    expect(report.excluded).toEqual({ jobDays: 2, hours: 11 });
+    expect(report.hours).toEqual({ flagged: 0, scanned: 2 });
+    expect(report.counts.photosOnly).toBe(1);
   });
 
   it('is loud when incomplete', () => {
