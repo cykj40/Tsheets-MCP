@@ -34,6 +34,7 @@ import { getProjectDetails } from './tools/get-project-details.js';
 import { initDatabase } from './db/database.js';
 import { getLastSyncDate } from './db/sync.js';
 import { syncTimesheets, SyncTimesheetsArgsSchema } from './tools/sync-timesheets.js';
+import { coverageReport, CoverageReportArgsSchema } from './tools/coverage-report.js';
 import { z } from 'zod';
 
 // Zod schemas for new tools
@@ -309,6 +310,19 @@ const tools: Tool[] = [
       required: ['mode'],
     },
   },
+  {
+    name: 'coverage_report',
+    description:
+      'Documentation coverage report. Rolls child jobcodes up to their parent job and lists job-days (job + date) whose timesheets have missing or thin notes and no attached files. Read-only, no AI. If the result says INCOMPLETE, data was truncated or a fetch failed; do not treat it as a full report.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        start_date: { type: 'string', description: 'Start date YYYY-MM-DD' },
+        end_date: { type: 'string', description: 'End date YYYY-MM-DD' },
+      },
+      required: ['start_date', 'end_date'],
+    },
+  },
 ];
 
 // Create MCP server
@@ -344,6 +358,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       'get_project_notes',
       'get_project_details',
       'sync_timesheets',
+      'coverage_report',
     ];
     if (toolsNeedingTSheets.includes(name)) {
       if (!tsheetsClient || !tsheetsApi || !tokenManager) {
@@ -478,6 +493,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: await syncTimesheets(validated),
             },
           ],
+        };
+      }
+
+      case 'coverage_report': {
+        const validated = CoverageReportArgsSchema.parse(args || {});
+        await tsheetsClient!.initialize();
+        const result = await coverageReport(tsheetsClient!, validated);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+          ...(result.complete ? {} : { isError: true }),
         };
       }
 

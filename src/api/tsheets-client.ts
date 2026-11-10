@@ -9,14 +9,36 @@ import { TSheetsOAuth, TSheetsOAuthConfig } from '../auth/tsheets-oauth.js';
 
 const TSHEETS_API_BASE_URL = 'https://rest.tsheets.com/api/v1';
 
+/** Retry behaviour for HTTP 429 (TSheets throttles within a 5-minute window). */
+export interface TSheetsRetryOptions {
+  maxRetries?: number; // retries after the first attempt (default 3)
+  baseDelayMs?: number; // first backoff delay (default 2000, doubles each retry)
+  maxDelayMs?: number; // cap on a single wait (default 60000)
+  sleep?: (ms: number) => Promise<void>; // injectable for tests
+}
+
+const defaultSleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 export class TSheetsClient {
   private tokenManager: TokenManager;
   private oauth: TSheetsOAuth;
   private refreshPromise: Promise<void> | null = null;
+  private maxRetries: number;
+  private baseDelayMs: number;
+  private maxDelayMs: number;
+  private sleep: (ms: number) => Promise<void>;
 
-  constructor(tokenManager: TokenManager, oauthConfig: TSheetsOAuthConfig) {
+  constructor(
+    tokenManager: TokenManager,
+    oauthConfig: TSheetsOAuthConfig,
+    retry: TSheetsRetryOptions = {},
+  ) {
     this.tokenManager = tokenManager;
     this.oauth = new TSheetsOAuth(oauthConfig);
+    this.maxRetries = retry.maxRetries ?? 3;
+    this.baseDelayMs = retry.baseDelayMs ?? 2000;
+    this.maxDelayMs = retry.maxDelayMs ?? 60000;
+    this.sleep = retry.sleep ?? defaultSleep;
   }
 
   /**
@@ -82,22 +104,43 @@ export class TSheetsClient {
       if (value) url.searchParams.append(key, value);
     });
 
-    console.error(`[TSheetsClient] GET ${url.toString()}`);
+    if (process.env.DEBUG) console.error(`[TSheetsClient] GET ${url.toString()}`);
 
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    for (let attempt = 0; ; attempt++) {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`TSheets API error: ${response.status} - ${errorText}`);
+      if (response.status === 429 && attempt < this.maxRetries) {
+        const waitMs = this.backoffMs(attempt, response.headers?.get?.('retry-after') ?? null);
+        console.error(
+          `[TSheetsClient] 429 throttled on ${endpoint}; retry ${attempt + 1}/${this.maxRetries} in ${waitMs}ms`,
+        );
+        await this.sleep(waitMs);
+        continue;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const suffix = response.status === 429 ? ` (still throttled after ${this.maxRetries} retries)` : '';
+        throw new Error(`TSheets API error: ${response.status}${suffix} - ${errorText}`);
+      }
+
+      return response.json() as Promise<T>;
     }
+  }
 
-    return response.json() as Promise<T>;
+  /** Exponential backoff, honoring a numeric Retry-After (seconds), capped. */
+  private backoffMs(attempt: number, retryAfter: string | null): number {
+    const seconds = retryAfter !== null ? Number(retryAfter) : NaN;
+    const wanted = Number.isFinite(seconds) && seconds >= 0
+      ? seconds * 1000
+      : this.baseDelayMs * 2 ** attempt;
+    return Math.min(wanted, this.maxDelayMs);
   }
 
   /**
@@ -110,9 +153,13 @@ export class TSheetsClient {
     user_ids?: number[];
     jobcode_ids?: number[];
     modified_since?: string; // ISO 8601
+    page?: number;
+    supplemental_data?: 'yes' | 'no';
   } = {}): Promise<any> {
     const queryParams: Record<string, string> = {};
 
+    if (params.page) queryParams.page = params.page.toString();
+    if (params.supplemental_data) queryParams.supplemental_data = params.supplemental_data;
     if (params.start_date) queryParams.start_date = params.start_date;
     if (params.end_date) queryParams.end_date = params.end_date;
     if (params.user_ids) queryParams.user_ids = params.user_ids.join(',');
@@ -128,11 +175,13 @@ export class TSheetsClient {
   async getUsers(params: {
     ids?: number[];
     active?: 'yes' | 'no' | 'both';
+    page?: number;
   } = {}): Promise<any> {
     const queryParams: Record<string, string> = {};
 
     if (params.ids) queryParams.ids = params.ids.join(',');
     if (params.active) queryParams.active = params.active;
+    if (params.page) queryParams.page = params.page.toString();
 
     return this.get('/users', queryParams);
   }
@@ -144,12 +193,14 @@ export class TSheetsClient {
     ids?: number[];
     active?: 'yes' | 'no' | 'both';
     parent_ids?: number[];
+    page?: number;
   } = {}): Promise<any> {
     const queryParams: Record<string, string> = {};
 
     if (params.ids) queryParams.ids = params.ids.join(',');
     if (params.active) queryParams.active = params.active;
     if (params.parent_ids) queryParams.parent_ids = params.parent_ids.join(',');
+    if (params.page) queryParams.page = params.page.toString();
 
     return this.get('/jobcodes', queryParams);
   }
@@ -160,9 +211,11 @@ export class TSheetsClient {
   async getFiles(params: {
     ids?: number[];
     linked_objects?: Array<{ id: number; type: string }>;
+    page?: number;
   } = {}): Promise<any> {
     const queryParams: Record<string, string> = {};
 
+    if (params.page) queryParams.page = params.page.toString();
     if (params.ids) queryParams.ids = params.ids.join(',');
     if (params.linked_objects) {
       queryParams.linked_objects = JSON.stringify(params.linked_objects);

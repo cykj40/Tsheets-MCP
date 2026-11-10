@@ -9,6 +9,11 @@ const LOCK_RETRY_MS = 100;
 const LOCK_MAX_WAIT_MS = 30_000;
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
+/** Per-request token chatter is noise; only emit it when DEBUG is set. */
+function debugLog(message: string): void {
+  if (process.env.DEBUG) console.error(message);
+}
+
 function resolveTokenFilePath(tokenFilePath: string): string {
   return isAbsolute(tokenFilePath) ? tokenFilePath : resolve(PROJECT_ROOT, tokenFilePath);
 }
@@ -39,7 +44,7 @@ export class TokenManager {
    * Returns null if file doesn't exist or tokens are expired
    */
   async loadTokens(): Promise<TSheetsStoredToken | null> {
-    console.error(`[TokenManager] Attempting to load tokens from: ${this.tokenFilePath}`);
+    debugLog(`[TokenManager] Attempting to load tokens from: ${this.tokenFilePath}`);
 
     try {
       // Check if file path is defined
@@ -67,17 +72,17 @@ export class TokenManager {
       const now = Date.now();
       const remainingMs = tokens.expiresAt - now;
       const isExpired = tokens.expiresAt - TOKEN_EXPIRY_BUFFER_MS <= now;
-      console.error(
+      debugLog(
         `[TokenManager] expiresAt=${tokens.expiresAt} (${new Date(tokens.expiresAt).toISOString()}) ` +
         `now=${now} (${new Date(now).toISOString()}) ` +
         `remainingMs=${remainingMs} buffer=${TOKEN_EXPIRY_BUFFER_MS} expired=${isExpired}`,
       );
       if (isExpired) {
-        console.error('[TokenManager] Token is expired');
+        debugLog('[TokenManager] Token is expired');
         return null; // Token expired
       }
 
-      console.error('[TokenManager] Tokens loaded successfully');
+      debugLog('[TokenManager] Tokens loaded successfully');
       return tokens;
     } catch (error) {
       if (error instanceof Error) {

@@ -1,0 +1,12 @@
+{
+  "_comment": "Copy to coverage-exclude.json (git-ignored). Matched against the ROOT job name or id. names: exact, case-insensitive. ids: root jobcode ids. patterns: case-insensitive regex tested against the root job name.",
+  "names": [],
+  "ids": [],
+  "patterns": [
+    "lunch\\s*break",
+    "\\bvacation\\b",
+    "\\bholiday\\b",
+    "\\bsick\\b",
+    "^office$"
+  ]
+}
